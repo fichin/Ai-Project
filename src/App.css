@@ -1,0 +1,75 @@
+.home {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  background: #0a0a0a;
+  color: white;
+}
+
+.hero {
+  width: 100%;
+  max-width: 900px;
+  text-align: center;
+}
+
+.hero-badge {
+  display: inline-block;
+  margin-bottom: 28px;
+  padding: 8px 14px;
+  border: 1px solid #333;
+  border-radius: 999px;
+  color: #aaa;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.hero h1 {
+  margin: 0;
+  color: white;
+  font-size: clamp(56px, 9vw, 110px);
+  line-height: 0.95;
+  letter-spacing: -5px;
+}
+
+.hero h1 span {
+  display: block;
+  color: #888;
+}
+
+.hero p {
+  max-width: 650px;
+  margin: 32px auto 0;
+  color: #999;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 38px;
+}
+
+.hero-actions button {
+  padding: 14px 24px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary-button {
+  border: none;
+  background: white;
+  color: black;
+}
+
+.secondary-button {
+  border: 1px solid #333;
+  background: transparent;
+  color: white;
+}
