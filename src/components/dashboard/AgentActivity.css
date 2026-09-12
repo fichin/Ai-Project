@@ -1,0 +1,138 @@
+.agent-activity {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+}
+
+.agent-activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.agent-activity-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 17px;
+}
+
+.agent-activity-link {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color var(--transition-fast) ease;
+}
+
+.agent-activity-link:hover {
+  color: var(--text-primary);
+}
+
+.agent-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast) ease;
+}
+
+.agent-activity-row:hover {
+  background: var(--bg-elevated-hover);
+}
+
+.agent-activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.agent-activity-dot-active {
+  background: var(--status-success);
+}
+
+.agent-activity-dot-paused {
+  background: var(--text-tertiary);
+}
+
+.agent-activity-dot-draft {
+  background: var(--status-warning);
+}
+
+.agent-activity-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-activity-name {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-activity-meta {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-activity-status {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated-hover);
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.agent-activity-status-active {
+  color: var(--status-success);
+}
+
+.agent-activity-status-paused {
+  color: var(--text-tertiary);
+}
+
+.agent-activity-status-draft {
+  color: var(--status-warning);
+}
+
+.agent-activity-empty,
+.agent-activity-skeleton {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.agent-activity-skeleton {
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, var(--bg-elevated-hover) 25%, var(--border-subtle) 50%, var(--bg-elevated-hover) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  margin-bottom: 4px;
+}
+
+.agent-activity-empty-link {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+}

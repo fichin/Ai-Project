@@ -1,0 +1,141 @@
+.nav-account {
+  position: relative;
+}
+
+.nav-account-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 5px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast) ease, border-color var(--transition-fast) ease;
+}
+
+.nav-account-trigger:hover {
+  background: var(--bg-elevated-hover);
+  border-color: var(--border-default);
+}
+
+.nav-account-name {
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-account-chevron {
+  color: var(--text-tertiary);
+  transition: transform var(--transition-fast) ease;
+}
+
+.nav-account-chevron-open {
+  transform: rotate(180deg);
+}
+
+.nav-account-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 110;
+  width: 240px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+.nav-account-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 10px;
+}
+
+.nav-account-dropdown-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nav-account-dropdown-name {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-account-dropdown-email {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-account-dropdown-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border-subtle);
+}
+
+.nav-account-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 9px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
+}
+
+.nav-account-dropdown-item:hover {
+  background: var(--bg-elevated-hover);
+  color: var(--text-primary);
+}
+
+.nav-account-dropdown-logout:hover {
+  color: var(--status-danger);
+}
+
+@media (max-width: 768px) {
+  .nav-account-trigger {
+    width: 100%;
+    padding: 16px 20px;
+    border-radius: 0;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: none;
+  }
+
+  .nav-account-trigger:hover {
+    background: transparent;
+    border-top-color: var(--border-subtle);
+  }
+
+  .nav-account-name {
+    flex: 1;
+    max-width: none;
+  }
+
+  .nav-account-dropdown {
+    position: static;
+    width: auto;
+    margin: 0 20px 12px;
+    box-shadow: none;
+  }
+}

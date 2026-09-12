@@ -1,0 +1,96 @@
+.stat-card {
+  position: relative;
+  padding: 22px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 40%), var(--bg-elevated);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), var(--shadow-md);
+  transition: transform var(--transition-base) var(--ease-out), box-shadow var(--transition-base) ease,
+    border-color var(--transition-base) ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-default);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 24px 48px -24px rgba(91, 140, 255, 0.25);
+}
+
+.stat-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.stat-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(155deg, rgba(91, 140, 255, 0.22), rgba(139, 92, 246, 0.14));
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 20px -10px rgba(91, 140, 255, 0.4);
+}
+
+.stat-card-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.stat-card-trend.up {
+  color: var(--status-success);
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.stat-card-trend.down {
+  color: var(--status-danger);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.stat-card-value {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+  line-height: 1.1;
+  margin-bottom: 4px;
+  min-height: 34px;
+}
+
+.stat-card-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.stat-card-secondary {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.stat-skeleton {
+  display: inline-block;
+  width: 64px;
+  height: 26px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--bg-elevated-hover) 25%, var(--border-subtle) 50%, var(--bg-elevated-hover) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card:hover {
+    transform: none;
+  }
+}

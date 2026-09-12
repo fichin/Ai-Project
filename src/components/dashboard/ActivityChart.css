@@ -1,0 +1,87 @@
+.activity-chart-card {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+}
+
+.activity-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.activity-chart-header h2 {
+  margin: 0 0 4px;
+  color: var(--text-primary);
+  font-size: 17px;
+}
+
+.activity-chart-header p {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.activity-chart-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.activity-chart-total-value {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.activity-chart-total-label {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.activity-chart-body {
+  height: 200px;
+}
+
+.activity-chart-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.activity-chart-empty,
+.activity-chart-skeleton {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  text-align: center;
+  padding: 0 20px;
+}
+
+.activity-chart-empty {
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-subtle);
+}
+
+.activity-chart-skeleton {
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, var(--bg-elevated-hover) 25%, var(--border-subtle) 50%, var(--bg-elevated-hover) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.activity-chart-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}

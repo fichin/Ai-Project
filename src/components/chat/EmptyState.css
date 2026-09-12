@@ -1,0 +1,68 @@
+.empty-state {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--bg-elevated-hover);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.empty-state h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 24px;
+}
+
+.empty-state p {
+  margin: 0 0 24px;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+.suggestion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.suggestion-chip {
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition-fast) ease, background var(--transition-fast) ease;
+}
+
+.suggestion-chip:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated-hover);
+}
+
+@media (max-width: 520px) {
+  .suggestion-grid {
+    grid-template-columns: 1fr;
+  }
+}

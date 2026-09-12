@@ -1,0 +1,45 @@
+.dev-email-preview {
+  margin: 20px 0;
+  padding: 14px;
+  border: 1px dashed #333;
+  border-radius: 10px;
+  background: #0d0d0d;
+}
+
+.dev-email-preview-label {
+  margin: 0 0 10px;
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.dev-email-preview-empty {
+  margin: 0;
+  color: #666;
+  font-size: 13px;
+}
+
+.dev-email-preview-item + .dev-email-preview-item {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #1e1e1e;
+}
+
+.dev-email-preview-subject {
+  margin-bottom: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dev-email-preview-body {
+  margin: 0;
+  color: #aaa;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+}
