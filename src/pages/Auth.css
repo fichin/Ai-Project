@@ -104,6 +104,21 @@
   text-decoration: underline;
 }
 
+.auth-demo-note {
+  margin: 12px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.auth-demo-note code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--bg-elevated-hover);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
 .auth-label-row {
   display: flex;
   align-items: center;

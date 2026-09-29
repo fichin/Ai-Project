@@ -114,6 +114,10 @@ function Login() {
         <p className="auth-switch">
           Don&apos;t have an account? <Link to="/register" state={location.state}>Sign up</Link>
         </p>
+
+        <p className="auth-demo-note">
+          Demo login: <code>demo@example.com</code> / <code>Demo1234!</code>
+        </p>
       </div>
     </div>
   )
