@@ -9,6 +9,7 @@ import ProjectsEmptyState from '../components/projects/ProjectsEmptyState'
 import ProjectFormModal from '../components/projects/ProjectFormModal'
 import { fetchProjects, createProjectRequest, updateProjectRequest, deleteProjectRequest } from '../components/projects/projectsApi'
 import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation'
+import { useDebounce } from '../hooks/useDebounce'
 import './Projects.css'
 
 const PROJECTS_QUERY_KEY = ['projects']
@@ -16,6 +17,10 @@ const PROJECTS_QUERY_KEY = ['projects']
 function Projects() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
+  // The input stays bound to `search` for instant feedback while typing —
+  // only the (comparatively expensive, re-filters the whole list) filter
+  // computation below waits for typing to pause.
+  const debouncedSearch = useDebounce(search, 300)
   const [statusFilter, setStatusFilter] = useState('all')
 
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -88,12 +93,12 @@ function Projects() {
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
       const matchesSearch =
-        project.name.toLowerCase().includes(search.toLowerCase()) ||
-        project.description.toLowerCase().includes(search.toLowerCase())
+        project.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        project.description.toLowerCase().includes(debouncedSearch.toLowerCase())
       const matchesStatus = statusFilter === 'all' || project.status === statusFilter
       return matchesSearch && matchesStatus
     })
-  }, [projects, search, statusFilter])
+  }, [projects, debouncedSearch, statusFilter])
 
   function handleClearFilters() {
     setSearch('')

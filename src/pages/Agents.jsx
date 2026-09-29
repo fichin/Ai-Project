@@ -12,6 +12,7 @@ import { nextStatus } from '../components/agents/agentsData'
 import { fetchAgents, createAgentRequest, updateAgentRequest, deleteAgentRequest } from '../components/agents/agentsApi'
 import { fetchProjects } from '../components/projects/projectsApi'
 import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation'
+import { useDebounce } from '../hooks/useDebounce'
 import './Agents.css'
 
 const AGENTS_QUERY_KEY = ['agents']
@@ -25,6 +26,10 @@ function Agents() {
   // CommandPalette.jsx — lands on this existing search/filter UI already
   // narrowed to that agent, instead of an unfiltered list.
   const [search, setSearch] = useState(location.state?.presetSearch ?? '')
+  // The input stays bound to `search` for instant feedback while typing —
+  // only the (comparatively expensive, re-filters the whole list) filter
+  // computation below waits for typing to pause.
+  const debouncedSearch = useDebounce(search, 300)
   const [statusFilter, setStatusFilter] = useState('all')
 
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -144,12 +149,12 @@ function Agents() {
   const filteredAgents = useMemo(() => {
     return agents.filter((agent) => {
       const matchesSearch =
-        agent.name.toLowerCase().includes(search.toLowerCase()) ||
-        agent.description.toLowerCase().includes(search.toLowerCase())
+        agent.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        agent.description.toLowerCase().includes(debouncedSearch.toLowerCase())
       const matchesStatus = statusFilter === 'all' || agent.status === statusFilter
       return matchesSearch && matchesStatus
     })
-  }, [agents, search, statusFilter])
+  }, [agents, debouncedSearch, statusFilter])
 
   function handleClearFilters() {
     setSearch('')
