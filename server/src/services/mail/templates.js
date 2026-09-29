@@ -2,7 +2,7 @@ import { env } from '../../config/env.js'
 import { EMAIL_VERIFICATION_TTL_HOURS, PASSWORD_RESET_TTL_MINUTES } from '../../config/auth.js'
 
 export function verificationEmail(email, token) {
-  const link = `${env.corsOrigin}/verify-email?token=${token}`
+  const link = `${env.frontendUrl}/verify-email?token=${token}`
   return {
     to: email,
     subject: 'Verify your email address',
@@ -11,7 +11,7 @@ export function verificationEmail(email, token) {
 }
 
 export function passwordResetEmail(email, token) {
-  const link = `${env.corsOrigin}/reset-password?token=${token}`
+  const link = `${env.frontendUrl}/reset-password?token=${token}`
   return {
     to: email,
     subject: 'Reset your password',

@@ -9,6 +9,13 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 4000,
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  // Where the frontend is actually deployed — used to build the links sent
+  // in verification/reset emails (see services/mail/templates.js). Kept
+  // separate from corsOrigin: that one is a security boundary (which origin
+  // the API accepts requests/cookies from), this one is just "where users
+  // land when they click an email link" — the two happen to share a value
+  // today but aren't the same concern.
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
   anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5',
   resendApiKey: process.env.RESEND_API_KEY || '',
