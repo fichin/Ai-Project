@@ -1,3 +1,4 @@
+import Icon from '../icons/Icon'
 import './EmptyState.css'
 
 const SUGGESTIONS = [
@@ -11,7 +12,7 @@ function EmptyState({ onSuggestionClick }) {
   return (
     <div className="empty-state">
       <div className="empty-state-icon" aria-hidden="true">
-        AI
+        <Icon name="chat" size={20} />
       </div>
       <h2>How can I help you today?</h2>
       <p>Ask a question or try one of these to see the chat in action.</p>

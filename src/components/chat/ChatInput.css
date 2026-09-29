@@ -49,7 +49,7 @@
   border: none;
   border-radius: var(--radius-sm);
   background: var(--text-primary);
-  color: #08090b;
+  color: var(--text-inverse);
   cursor: pointer;
   transition: opacity var(--transition-fast) ease, box-shadow var(--transition-base) ease;
 }

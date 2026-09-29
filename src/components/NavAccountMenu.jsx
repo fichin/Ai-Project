@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from './Avatar'
+import { useDismissableLayer } from '../hooks/useDismissableLayer'
 import './NavAccountMenu.css'
 
 // The session-aware replacement for the logged-out Navbar's "Log in / Sign
@@ -9,22 +10,11 @@ function NavAccountMenu({ user, onLogout }) {
   const [isOpen, setIsOpen] = useState(false)
   const rootRef = useRef(null)
 
-  useEffect(() => {
-    function handlePointerDown(event) {
-      if (rootRef.current && !rootRef.current.contains(event.target)) {
-        setIsOpen(false)
-      }
-    }
-    function handleKeyDown(event) {
-      if (event.key === 'Escape') setIsOpen(false)
-    }
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [])
+  // Escape-to-close and click-outside-to-close are shared with
+  // NotificationsBell via useDismissableLayer — this is a lightweight
+  // popover, not a modal dialog, so it intentionally doesn't get the hook's
+  // focus-trap behavior (no dialogRef passed).
+  useDismissableLayer({ isOpen, onDismiss: () => setIsOpen(false), containerRef: rootRef })
 
   function close() {
     setIsOpen(false)
@@ -54,6 +44,7 @@ function NavAccountMenu({ user, onLogout }) {
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
+          aria-hidden="true"
         >
           <path d="m6 9 6 6 6-6" />
         </svg>

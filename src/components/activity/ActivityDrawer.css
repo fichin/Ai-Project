@@ -1,0 +1,170 @@
+.activity-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(5, 6, 8, 0.6);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: activity-drawer-fade-in var(--transition-base) ease;
+}
+
+.activity-drawer-panel {
+  width: 100%;
+  max-width: 380px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border-left: 1px solid var(--border-default);
+  box-shadow: var(--shadow-lg);
+  animation: activity-drawer-slide-in var(--transition-base) var(--ease-out);
+}
+
+.activity-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.activity-drawer-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.activity-drawer-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast) ease, color var(--transition-fast) ease;
+}
+
+.activity-drawer-close:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.activity-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.activity-drawer-status {
+  padding: 40px 8px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.activity-drawer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.activity-drawer-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.activity-drawer-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bg-elevated-hover);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.activity-drawer-icon-project {
+  color: var(--accent-blue);
+}
+
+.activity-drawer-icon-agent {
+  color: var(--accent-purple);
+}
+
+.activity-drawer-icon-profile,
+.activity-drawer-icon-preferences {
+  color: var(--accent-cyan);
+}
+
+.activity-drawer-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-drawer-message {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.activity-drawer-time {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.activity-drawer-skeleton {
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, var(--bg-elevated-hover) 25%, var(--border-subtle) 50%, var(--bg-elevated-hover) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes activity-drawer-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes activity-drawer-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-drawer-overlay,
+  .activity-drawer-panel {
+    animation: none;
+  }
+}
+
+[data-reduced-motion='true'] .activity-drawer-overlay,
+[data-reduced-motion='true'] .activity-drawer-panel {
+  animation: none;
+}
+
+@media (max-width: 480px) {
+  .activity-drawer-panel {
+    max-width: 100%;
+  }
+}

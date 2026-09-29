@@ -1,31 +1,36 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import Button from '../components/Button'
+import PasswordInput from '../components/PasswordInput'
 import CheckYourEmailPanel from '../components/auth/CheckYourEmailPanel'
 import { useAuth } from '../context/useAuth'
+import { usePreferences } from '../context/usePreferences'
+import { required, passwordStrength, matches, firstError } from '../lib/validation'
+import { useSubmitState } from '../hooks/useSubmitState'
 import './Auth.css'
 
 function validate({ name, email, password, confirmPassword }) {
-  if (!name.trim()) return 'Name is required.'
-  if (!email.trim()) return 'Email is required.'
-  if (password.length < 8) return 'Password must be at least 8 characters.'
-  if (password !== confirmPassword) return 'Passwords do not match.'
-  return null
+  return firstError(
+    required(name, 'Name is required.'),
+    required(email, 'Email is required.'),
+    passwordStrength(password),
+    matches(password, confirmPassword, 'Passwords do not match.'),
+  )
 }
 
 function Register() {
   const { user, isLoading, register } = useAuth()
+  const { preferences } = usePreferences()
   const location = useLocation()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { error, setError, isSubmitting, submit } = useSubmitState()
   const [registeredEmail, setRegisteredEmail] = useState(null)
 
   if (!isLoading && user) {
-    return <Navigate to={location.state?.from ?? '/assistant'} replace />
+    return <Navigate to={location.state?.from ?? preferences?.defaultLandingPage ?? '/assistant'} replace />
   }
 
   async function handleSubmit(event) {
@@ -37,16 +42,21 @@ function Register() {
       return
     }
 
-    setError(null)
-    setIsSubmitting(true)
-    try {
-      const data = await register(email, password, name)
-      setRegisteredEmail(data.email)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsSubmitting(false)
-    }
+    await submit(
+      async () => {
+        const data = await register(email, password, name)
+        setRegisteredEmail(data.email)
+      },
+      {
+        onError: (err) => {
+          // The backend's own message ("An account with this email already
+          // exists.") is already specific, but pinning the wording here to
+          // the status code (rather than string-matching the message) keeps
+          // this working even if that copy changes later.
+          setError(err.status === 409 ? 'This email is already registered.' : err.message)
+        },
+      },
+    )
   }
 
   if (registeredEmail) {
@@ -98,8 +108,7 @@ function Register() {
           </label>
           <label>
             Password
-            <input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
@@ -107,10 +116,10 @@ function Register() {
               autoComplete="new-password"
             />
           </label>
+          <p className="auth-field-hint">At least 8 characters, with one uppercase letter and one number.</p>
           <label>
             Confirm password
-            <input
-              type="password"
+            <PasswordInput
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               required

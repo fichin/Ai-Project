@@ -69,5 +69,5 @@
 .filter-chip.active {
   background: var(--text-primary);
   border-color: var(--text-primary);
-  color: #08090b;
+  color: var(--text-inverse);
 }

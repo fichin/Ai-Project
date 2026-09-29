@@ -1,11 +1,14 @@
 import { apiRequest } from '../../lib/apiClient'
 
-export function fetchProjects() {
-  return apiRequest('/api/projects')
+// `options` is optional and forwarded as-is to apiRequest/fetch — pass
+// `{ signal }` from an AbortController to make the request cancellable;
+// every existing no-argument call site is unaffected.
+export function fetchProjects(options) {
+  return apiRequest('/api/projects', options)
 }
 
-export function fetchProject(id) {
-  return apiRequest(`/api/projects/${id}`)
+export function fetchProject(id, options) {
+  return apiRequest(`/api/projects/${id}`, options)
 }
 
 export function createProjectRequest(project) {

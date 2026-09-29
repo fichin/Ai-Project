@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import Button from '../components/Button'
 import { resetPasswordRequest } from '../components/auth/authApi'
+import { minLength, matches, firstError } from '../lib/validation'
+import { useSubmitState } from '../hooks/useSubmitState'
 import './Auth.css'
 
 function ResetPassword() {
@@ -9,36 +11,27 @@ function ResetPassword() {
   const token = searchParams.get('token') ?? ''
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { error, setError, isSubmitting, submit } = useSubmitState()
   const [isDone, setIsDone] = useState(false)
 
   async function handleSubmit(event) {
     event.preventDefault()
 
-    if (!token) {
-      setError('This reset link is missing its token. Please request a new one.')
-      return
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
-      return
-    }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.')
+    const validationError = !token
+      ? 'This reset link is missing its token. Please request a new one.'
+      : firstError(
+          minLength(password, 8, 'Password must be at least 8 characters.'),
+          matches(password, confirmPassword, 'Passwords do not match.'),
+        )
+    if (validationError) {
+      setError(validationError)
       return
     }
 
-    setError(null)
-    setIsSubmitting(true)
-    try {
+    await submit(async () => {
       await resetPasswordRequest(token, password)
       setIsDone(true)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsSubmitting(false)
-    }
+    })
   }
 
   if (isDone) {

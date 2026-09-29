@@ -1,0 +1,84 @@
+.pa-flows {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1120px;
+  margin: 48px auto 0;
+}
+
+.pa-flow-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+}
+
+.pa-flow-nodes {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.pa-flow-node {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pa-flow-tag {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.pa-flow-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pa-flow-value svg {
+  color: var(--accent-blue);
+  flex-shrink: 0;
+}
+
+.pa-flow-arrow {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.pa-flow-status {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .pa-flow-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 22px;
+  }
+
+  .pa-flow-nodes {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .pa-flow-arrow {
+    transform: rotate(90deg);
+  }
+
+  .pa-flow-status {
+    align-self: flex-end;
+  }
+}

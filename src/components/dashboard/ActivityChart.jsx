@@ -75,7 +75,13 @@ function ActivityChart({ data, isLoading }) {
             <p>No AI activity yet. Start a conversation to see your usage trend here.</p>
           </div>
         ) : (
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="activity-chart-svg">
+          <svg
+            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+            preserveAspectRatio="none"
+            className="activity-chart-svg"
+            role="img"
+            aria-label={`${total.toLocaleString()} messages exchanged from ${formatShortDate(points[0].date)} to ${formatShortDate(points[points.length - 1].date)}`}
+          >
             <defs>
               <linearGradient id="activityAreaGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#5b8cff" stopOpacity="0.35" />

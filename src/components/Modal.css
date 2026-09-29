@@ -25,6 +25,10 @@
   animation: modal-scale-in var(--transition-base) var(--ease-out);
 }
 
+.modal-panel-lg {
+  max-width: 740px;
+}
+
 .modal-header {
   display: flex;
   align-items: center;

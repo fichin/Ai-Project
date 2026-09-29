@@ -1,7 +1,10 @@
 import { apiRequest } from '../../lib/apiClient'
 
-export function fetchConversations() {
-  return apiRequest('/api/conversations')
+// `options` is optional and forwarded as-is to apiRequest/fetch — pass
+// `{ signal }` from an AbortController to make the request cancellable;
+// every existing call site that omits it is unaffected.
+export function fetchConversations(options) {
+  return apiRequest('/api/conversations', options)
 }
 
 export function createConversationRequest(title) {
@@ -12,8 +15,8 @@ export function createConversationRequest(title) {
   })
 }
 
-export function fetchConversationMessages(conversationId) {
-  return apiRequest(`/api/conversations/${conversationId}/messages`)
+export function fetchConversationMessages(conversationId, options) {
+  return apiRequest(`/api/conversations/${conversationId}/messages`, options)
 }
 
 export function sendChatMessage(conversationId, message) {

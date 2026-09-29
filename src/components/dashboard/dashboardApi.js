@@ -1,5 +1,8 @@
 import { apiRequest } from '../../lib/apiClient'
 
-export function fetchDashboardSummary() {
-  return apiRequest('/api/dashboard/summary')
+// `options` is optional and forwarded as-is to apiRequest/fetch — pass
+// `{ signal }` from an AbortController to make the request cancellable;
+// the existing no-argument call site is unaffected.
+export function fetchDashboardSummary(options) {
+  return apiRequest('/api/dashboard/summary', options)
 }

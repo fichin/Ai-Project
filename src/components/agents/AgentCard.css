@@ -1,7 +1,7 @@
 .agent-card {
   display: flex;
   flex-direction: column;
-  padding: 24px;
+  padding: var(--density-card-padding);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
@@ -29,8 +29,10 @@
   width: 44px;
   height: 44px;
   border-radius: var(--radius-sm);
-  background: var(--bg-elevated-hover);
+  background: linear-gradient(155deg, rgba(91, 140, 255, 0.22), rgba(139, 92, 246, 0.14));
+  border: 1px solid var(--border-default);
   color: var(--text-primary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 20px -10px rgba(91, 140, 255, 0.4);
 }
 
 .agent-status {
@@ -72,14 +74,74 @@
 
 .agent-card p {
   flex: 1;
-  margin: 0 0 20px;
+  margin: 0 0 16px;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.6;
 }
 
-.agent-card .btn {
-  align-self: flex-start;
+.agent-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.agent-card-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.agent-card-meta-item svg {
+  flex-shrink: 0;
+}
+
+.agent-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.agent-card-actions .btn {
   padding: 9px 18px;
   font-size: 13px;
+}
+
+.agent-card-icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.agent-card-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast) ease, color var(--transition-fast) ease,
+    background var(--transition-fast) ease;
+}
+
+.agent-card-icon-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.agent-card-icon-btn-danger:hover {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
 }

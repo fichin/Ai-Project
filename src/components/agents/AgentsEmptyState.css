@@ -33,3 +33,14 @@
   font-size: 14px;
   max-width: 360px;
 }
+
+.agents-empty-hint {
+  margin: 16px 0 0;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.agents-empty-hint a {
+  color: var(--accent-current);
+  font-weight: 500;
+}

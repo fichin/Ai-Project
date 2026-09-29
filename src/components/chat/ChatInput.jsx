@@ -42,6 +42,7 @@ function ChatInput({ onSend, disabled }) {
           ref={textareaRef}
           className="chat-input"
           placeholder="Message the assistant..."
+          aria-label="Message the assistant"
           rows={1}
           value={value}
           onChange={handleChange}
@@ -54,7 +55,7 @@ function ChatInput({ onSend, disabled }) {
           disabled={disabled || !value.trim()}
           aria-label="Send message"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M12 19V5M5 12l7-7 7 7" />
           </svg>
         </button>

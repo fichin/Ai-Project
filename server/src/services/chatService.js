@@ -31,12 +31,12 @@ export async function generateChatReply(message) {
 // conversationIdInput missing/null => start a new conversation automatically
 // (keeps /api/chat usable from the Assistant's empty state without forcing a
 // POST /api/conversations first). A non-null id must belong to userId.
-export function resolveConversation(conversationIdInput, userId) {
+export async function resolveConversation(conversationIdInput, userId) {
   if (conversationIdInput === undefined || conversationIdInput === null) {
     return createConversation(userId, null)
   }
 
-  const conversation = getConversationByIdForUser(conversationIdInput, userId)
+  const conversation = await getConversationByIdForUser(conversationIdInput, userId)
   if (!conversation) {
     throw new ConversationNotFoundError()
   }
@@ -44,19 +44,23 @@ export function resolveConversation(conversationIdInput, userId) {
   return conversation
 }
 
+// Returns the persisted rows (not just the reply text) so callers have real
+// database ids to key off of — the frontend uses these instead of throwaway
+// client-generated ids, which is what lets a future streaming endpoint patch
+// a specific in-flight message by id instead of guessing at ordering.
 export async function sendChatMessage(conversationId, message) {
-  const isFirstMessage = countMessages(conversationId) === 0
+  const isFirstMessage = (await countMessages(conversationId)) === 0
 
-  createMessage(conversationId, 'user', message)
+  const userMessage = await createMessage(conversationId, 'user', message)
 
   if (isFirstMessage) {
-    setConversationTitle(conversationId, titleFromMessage(message))
+    await setConversationTitle(conversationId, titleFromMessage(message))
   }
 
   const reply = await generateChatReply(message)
 
-  createMessage(conversationId, 'assistant', reply)
-  touchConversation(conversationId)
+  const assistantMessage = await createMessage(conversationId, 'assistant', reply)
+  await touchConversation(conversationId)
 
-  return reply
+  return { userMessage, assistantMessage }
 }

@@ -3,33 +3,29 @@ import { Link } from 'react-router-dom'
 import Button from '../components/Button'
 import DevEmailPreview from '../components/auth/DevEmailPreview'
 import { forgotPasswordRequest } from '../components/auth/authApi'
+import { required } from '../lib/validation'
+import { useSubmitState } from '../hooks/useSubmitState'
 import './Auth.css'
 
 function ForgotPassword() {
   const [email, setEmail] = useState('')
-  const [error, setError] = useState(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { error, setError, isSubmitting, submit } = useSubmitState()
   const [submittedEmail, setSubmittedEmail] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   async function handleSubmit(event) {
     event.preventDefault()
 
-    if (!email.trim()) {
-      setError('Email is required.')
+    const validationError = required(email, 'Email is required.')
+    if (validationError) {
+      setError(validationError)
       return
     }
 
-    setError(null)
-    setIsSubmitting(true)
-    try {
+    await submit(async () => {
       await forgotPasswordRequest(email)
       setSubmittedEmail(email.trim().toLowerCase())
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsSubmitting(false)
-    }
+    })
   }
 
   async function handleResend() {

@@ -1,0 +1,41 @@
+.home-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 640px;
+}
+
+.home-section-head-center {
+  align-items: center;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.home-section-head-left {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.home-eyebrow {
+  margin: 0;
+  color: var(--accent-blue);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+}
+
+.home-section-head h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(26px, 3.4vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -1px;
+}
+
+.home-section-subcopy {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.6;
+}

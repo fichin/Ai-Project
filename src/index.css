@@ -10,7 +10,7 @@
 
   --text-primary: #f5f6f8;
   --text-secondary: #a1a5b0;
-  --text-tertiary: #6b6f7a;
+  --text-tertiary: #828692;
 
   --accent-blue: #5b8cff;
   --accent-purple: #8b5cf6;
@@ -38,6 +38,116 @@
   --shadow-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.65);
 
   --sidebar-width: 264px;
+  --sidebar-width-collapsed: 76px;
+
+  /* The color used for text/icons sitting on an "inverted" surface, e.g.
+     .btn-primary's background (var(--text-primary)) — always the opposite
+     of --text-primary, in both themes. */
+  --text-inverse: #08090b;
+
+  /* Accent preference (Settings → Appearance). --accent-current is a solid
+     color for active-nav/focus/links; --accent-glow is a ready-to-use rgba
+     shadow color for hover glows. Both default to blue and are overridden
+     by the [data-accent] blocks below. */
+  --accent-current: var(--accent-blue);
+  --accent-glow: rgba(91, 140, 255, 0.45);
+
+  /* Density preference (Settings → Layout). Consumed by card padding and
+     grid gaps; compact overrides these below. */
+  --density-card-padding: 24px;
+  --density-grid-gap: 20px;
+}
+
+[data-accent='blue'] {
+  --accent-current: var(--accent-blue);
+  --accent-glow: rgba(91, 140, 255, 0.45);
+}
+
+[data-accent='purple'] {
+  --accent-current: var(--accent-purple);
+  --accent-glow: rgba(139, 92, 246, 0.45);
+}
+
+[data-accent='cyan'] {
+  --accent-current: var(--accent-cyan);
+  --accent-glow: rgba(34, 211, 238, 0.45);
+}
+
+[data-density='compact'] {
+  --density-card-padding: 16px;
+  --density-grid-gap: 12px;
+}
+
+/* Light theme: same token set, light values. Every component already reads
+   colors through these variables (no hardcoded hex in component CSS besides
+   the --text-inverse cases above), so this block alone re-themes the whole
+   app. Explicit choice ([data-theme]) always wins; "System" (no attribute)
+   falls through to the prefers-color-scheme block further down. */
+[data-theme='dark'] {
+  --bg-base: #0a0a0a;
+  --bg-surface: #0e0f13;
+  --bg-elevated: #111318;
+  --bg-elevated-hover: #16181f;
+  --border-subtle: #1e2028;
+  --border-default: #2a2d38;
+  --border-strong: #3a3f4d;
+  --text-primary: #f5f6f8;
+  --text-secondary: #a1a5b0;
+  --text-tertiary: #828692;
+  --text-inverse: #08090b;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 16px 32px -24px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.65);
+}
+
+[data-theme='light'] {
+  --bg-base: #f6f7f9;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-elevated-hover: #f1f2f5;
+  --border-subtle: #e7e8ec;
+  --border-default: #dadce2;
+  --border-strong: #c2c5cf;
+  --text-primary: #12131a;
+  --text-secondary: #4b4f5c;
+  --text-tertiary: #646873;
+  --text-inverse: #f5f6f8;
+  --shadow-sm: 0 1px 2px rgba(20, 20, 30, 0.06);
+  --shadow-md: 0 16px 32px -24px rgba(20, 20, 30, 0.18);
+  --shadow-lg: 0 24px 60px -20px rgba(20, 20, 30, 0.22);
+
+  /* The dark-theme status colors are bright pastels tuned for contrast
+     against near-black surfaces — used as-is on light backgrounds they
+     drop below WCAG AA (~2:1) against the near-white card/pill surfaces
+     that show them. These are darker, more saturated versions of the same
+     hues, tuned for contrast against light surfaces instead. */
+  --status-success: #166534;
+  --status-warning: #92400e;
+  --status-info: #1d4ed8;
+  --status-danger: #b91c1c;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']):not([data-theme='light']) {
+    --bg-base: #f6f7f9;
+    --bg-surface: #ffffff;
+    --bg-elevated: #ffffff;
+    --bg-elevated-hover: #f1f2f5;
+    --border-subtle: #e7e8ec;
+    --border-default: #dadce2;
+    --border-strong: #c2c5cf;
+    --text-primary: #12131a;
+    --text-secondary: #4b4f5c;
+    --text-tertiary: #646873;
+    --text-inverse: #f5f6f8;
+    --shadow-sm: 0 1px 2px rgba(20, 20, 30, 0.06);
+    --shadow-md: 0 16px 32px -24px rgba(20, 20, 30, 0.18);
+    --shadow-lg: 0 24px 60px -20px rgba(20, 20, 30, 0.22);
+    --status-success: #166534;
+    --status-warning: #92400e;
+    --status-info: #1d4ed8;
+    --status-danger: #b91c1c;
+  }
 }
 
 * {
@@ -54,6 +164,21 @@ body,
 body {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg-base);
+}
+
+/* Visually hides content while keeping it in the accessibility tree —
+   use for headings/labels needed for screen-reader structure or naming
+   that shouldn't appear in the visual design. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 @keyframes skeleton-shimmer {
@@ -74,4 +199,42 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Explicit "Reduced motion" preference (Settings → Behavior) — same effect
+   as the OS-level query above, applied regardless of the OS setting. */
+[data-reduced-motion='true'] *,
+[data-reduced-motion='true'] *::before,
+[data-reduced-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Accent-aware focus ring, applied once globally rather than per-component
+   — covers buttons, links, inputs, and custom interactive elements (cards,
+   menu items) alike. */
+:focus-visible {
+  outline: 2px solid var(--accent-current);
+  outline-offset: 2px;
+}
+
+/* Shared top-level page header type scale — used by Dashboard, Projects,
+   Agents, and Settings so their headers carry the same visual weight
+   instead of drifting independently per page. Sub-page headers (e.g.
+   ProjectDetails, which sits inside a narrower detail layout) intentionally
+   stay smaller and define their own size. */
+.page-title {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+  font-size: clamp(28px, 4vw, 38px);
+  letter-spacing: -1px;
+}
+
+.page-subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.6;
 }

@@ -8,6 +8,9 @@ import projectsRoutes from './routes/projects.routes.js'
 import agentsRoutes from './routes/agents.routes.js'
 import conversationsRoutes from './routes/conversations.routes.js'
 import dashboardRoutes from './routes/dashboard.routes.js'
+import activityRoutes from './routes/activity.routes.js'
+import notificationsRoutes from './routes/notifications.routes.js'
+import preferencesRoutes from './routes/preferences.routes.js'
 import devRoutes from './routes/dev.routes.js'
 import { notFound } from './middleware/notFound.js'
 import { errorHandler } from './middleware/errorHandler.js'
@@ -35,6 +38,9 @@ export function createApp() {
   app.use('/api', requireAuth, agentsRoutes)
   app.use('/api', requireAuth, conversationsRoutes)
   app.use('/api', requireAuth, dashboardRoutes)
+  app.use('/api', requireAuth, activityRoutes)
+  app.use('/api', requireAuth, notificationsRoutes)
+  app.use('/api', requireAuth, preferencesRoutes)
 
   app.use(notFound)
   app.use(errorHandler)

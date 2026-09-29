@@ -8,13 +8,14 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "db:init": "node src/db/migrate.js"
+    "dev": "node --watch src/server.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.1"
+    "express": "^4.21.1",
+    "pg": "^8.23.0",
+    "resend": "^6.30.0"
   }
 }

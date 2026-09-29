@@ -1,10 +1,11 @@
 import { parseCookies } from '../utils/cookies.js'
 import { getSessionUser } from '../db/sessionsRepository.js'
 import { SESSION_COOKIE_NAME, EMAIL_NOT_VERIFIED_CODE, EMAIL_NOT_VERIFIED_MESSAGE } from '../config/auth.js'
+import { asyncHandler } from '../utils/asyncHandler.js'
 
-export function requireAuth(req, res, next) {
+async function checkAuth(req, res, next) {
   const cookies = parseCookies(req.headers.cookie)
-  const user = getSessionUser(cookies[SESSION_COOKIE_NAME])
+  const user = await getSessionUser(cookies[SESSION_COOKIE_NAME])
 
   if (!user) {
     return res.status(401).json({ error: 'Authentication required.' })
@@ -24,3 +25,9 @@ export function requireAuth(req, res, next) {
   req.user = user
   next()
 }
+
+// Wrapped here rather than at each call site — app.js mounts this on 8
+// separate protected routers, and this file's own /auth/me routes use it
+// too — so every consumer gets rejection-safe behavior with no changes
+// needed anywhere else.
+export const requireAuth = asyncHandler(checkAuth)

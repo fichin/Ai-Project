@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '../context/useAuth'
 import ChatSidebar from '../components/chat/ChatSidebar'
 import ChatMessage from '../components/chat/ChatMessage'
 import TypingIndicator from '../components/chat/TypingIndicator'
 import EmptyState from '../components/chat/EmptyState'
 import ChatInput from '../components/chat/ChatInput'
 import Button from '../components/Button'
-import { createUserMessage, createAssistantMessage } from '../components/chat/chatData'
+import Icon from '../components/icons/Icon'
+import { createUserMessage, createAssistantMessage, fromServerMessage } from '../components/chat/chatData'
 import {
   fetchConversations,
   createConversationRequest,
@@ -14,67 +17,150 @@ import {
 } from '../components/chat/chatApi'
 import './Assistant.css'
 
+// Assistant's data (conversations/messages) is entirely its own — it
+// doesn't read or write anything from the `['projects']`/`['agents']`
+// caches, so this page introduces its own query keys rather than sharing
+// one of theirs.
+const CONVERSATIONS_QUERY_KEY = ['conversations']
+
+function messagesKey(conversationId) {
+  return ['conversations', conversationId, 'messages']
+}
+
 function Assistant() {
-  const [conversations, setConversations] = useState([])
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
   const [activeId, setActiveId] = useState(null)
-  const [messages, setMessages] = useState([])
-  const [isLoadingConversations, setIsLoadingConversations] = useState(true)
-  const [conversationsError, setConversationsError] = useState(null)
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
-  const [messagesError, setMessagesError] = useState(null)
-  const [isTyping, setIsTyping] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  // Surfaces a "New chat" failure in the same error+Retry slot the
+  // conversations query's own error uses — the pre-migration code shared
+  // one `conversationsError` state between the two — without conflating a
+  // mutation's error with the query's own error object.
+  const [createConversationError, setCreateConversationError] = useState(null)
   const messagesEndRef = useRef(null)
+  // Auto-selects the most recent conversation exactly once, tied to the
+  // first successful conversations load — same as the original
+  // `initialize()` (called once on mount) rather than re-running on every
+  // later change to the list, e.g. after creating or sending a first
+  // message. Stays false across a failed attempt so a Retry still gets to
+  // auto-select once it succeeds.
+  const hasAutoSelectedRef = useRef(false)
+
+  const {
+    data: conversations = [],
+    isLoading: isLoadingConversationsRaw,
+    isFetching: isFetchingConversations,
+    error: conversationsErrorObj,
+    refetch: refetchConversations,
+  } = useQuery({
+    queryKey: CONVERSATIONS_QUERY_KEY,
+    queryFn: ({ signal }) => fetchConversations({ signal }),
+  })
+  const conversationsQueryError = conversationsErrorObj?.message ?? null
+  const conversationsError = conversationsQueryError ?? createConversationError
+  // Same reasoning as Projects/Agents/Dashboard: once a load has failed,
+  // `error` stays set for the duration of a manual retry — only
+  // `isFetching` flips true — so this covers the retry-in-flight case the
+  // same way the original's `isLoadingConversations` (reset to true on
+  // every retry) did.
+  const isShowingConversationsLoadingState =
+    isLoadingConversationsRaw || (Boolean(conversationsQueryError) && isFetchingConversations)
+
+  const {
+    data: messages = [],
+    isLoading: isLoadingMessagesRaw,
+    isFetching: isFetchingMessages,
+    error: messagesErrorObj,
+    refetch: refetchMessages,
+  } = useQuery({
+    queryKey: messagesKey(activeId),
+    queryFn: ({ signal }) => fetchConversationMessages(activeId, { signal }),
+    enabled: activeId !== null,
+  })
+  const messagesError = messagesErrorObj?.message ?? null
+  const isShowingMessagesLoadingState = isLoadingMessagesRaw || (Boolean(messagesError) && isFetchingMessages)
 
   const activeConversation = conversations.find((c) => c.id === activeId)
 
   useEffect(() => {
-    initialize()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (hasAutoSelectedRef.current) return
+    if (isFetchingConversations) return
+    if (conversationsErrorObj) return
+    hasAutoSelectedRef.current = true
+    if (conversations.length > 0) {
+      // One-time initial-data-driven state setup (see the `hasAutoSelectedRef`
+      // comment above), same category of exception as AuthProvider's
+      // restoreSession() and useCancellableLoad's initial load.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveId(conversations[0].id)
+    }
+  }, [isFetchingConversations, conversationsErrorObj, conversations])
+
+  // Re-fetched (and swallowed on failure) after every send so the sidebar
+  // picks up e.g. a brand-new conversation's server-assigned title without
+  // ever surfacing an error for it — same as the original's
+  // `refreshConversationsSilently`, just writing into the cache instead of
+  // local state.
+  async function refreshConversationsSilently() {
+    try {
+      const data = await fetchConversations()
+      queryClient.setQueryData(CONVERSATIONS_QUERY_KEY, data)
+    } catch {
+      // Non-critical — the sidebar just keeps its last known list.
+    }
+  }
+
+  const createConversationMutation = useMutation({
+    mutationFn: () => createConversationRequest(),
+    onSuccess: (created) => {
+      queryClient.setQueryData(CONVERSATIONS_QUERY_KEY, (prev) => [created, ...(prev ?? [])])
+    },
+  })
+
+  // The optimistic echo, the error-message-appended-on-failure, and moving
+  // to a server-assigned conversation id all pre-date this migration —
+  // preserved as-is, just operating on the query cache instead of local
+  // `messages` state.
+  const sendMessageMutation = useMutation({
+    mutationFn: ({ conversationId, text }) => sendChatMessage(conversationId, text),
+    onMutate: async ({ conversationId, text }) => {
+      const key = messagesKey(conversationId)
+      await queryClient.cancelQueries({ queryKey: key })
+      const optimisticMessage = createUserMessage(text)
+      queryClient.setQueryData(key, (prev) => [...(prev ?? []), optimisticMessage])
+      return { key, optimisticMessage }
+    },
+    onSuccess: (data, variables, context) => {
+      const settled = [
+        ...(queryClient.getQueryData(context.key) ?? []).filter(
+          (message) => message.id !== context.optimisticMessage.id,
+        ),
+        fromServerMessage(data.userMessage),
+        fromServerMessage(data.assistantMessage),
+      ]
+
+      if (variables.conversationId !== data.conversationId) {
+        // Sent with no conversation selected (or a superseded one) and the
+        // server created a new one for it — move the exchange to its real
+        // key and switch the view to it.
+        queryClient.setQueryData(messagesKey(data.conversationId), settled)
+        setActiveId(data.conversationId)
+      } else {
+        queryClient.setQueryData(context.key, settled)
+      }
+
+      refreshConversationsSilently()
+    },
+    onError: (error, _variables, context) => {
+      const errorMessage = createAssistantMessage(error.message, true)
+      queryClient.setQueryData(context.key, (prev) => [...(prev ?? []), errorMessage])
+    },
+  })
+  const isTyping = sendMessageMutation.isPending
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length, isTyping])
-
-  async function initialize() {
-    setIsLoadingConversations(true)
-    setConversationsError(null)
-    try {
-      const data = await fetchConversations()
-      setConversations(data)
-      if (data.length > 0) {
-        setActiveId(data[0].id)
-        await loadMessages(data[0].id)
-      }
-    } catch (error) {
-      setConversationsError(error.message)
-    } finally {
-      setIsLoadingConversations(false)
-    }
-  }
-
-  async function loadMessages(conversationId) {
-    setIsLoadingMessages(true)
-    setMessagesError(null)
-    try {
-      const data = await fetchConversationMessages(conversationId)
-      setMessages(data)
-    } catch (error) {
-      setMessagesError(error.message)
-    } finally {
-      setIsLoadingMessages(false)
-    }
-  }
-
-  async function refreshConversationsSilently() {
-    try {
-      const data = await fetchConversations()
-      setConversations(data)
-    } catch {
-      // Non-critical: the sidebar just keeps its last known list.
-    }
-  }
 
   async function handleNewChat() {
     // Reuse the current conversation if it's already empty instead of
@@ -85,42 +171,25 @@ function Assistant() {
     }
 
     try {
-      const conversation = await createConversationRequest()
-      setConversations((prev) => [conversation, ...prev])
+      const conversation = await createConversationMutation.mutateAsync()
       setActiveId(conversation.id)
-      setMessages([])
+      setCreateConversationError(null)
       setIsSidebarOpen(false)
     } catch (error) {
-      setConversationsError(error.message)
+      setCreateConversationError(error.message)
     }
   }
 
-  async function handleSelectConversation(id) {
+  function handleSelectConversation(id) {
     setActiveId(id)
     setIsSidebarOpen(false)
-    await loadMessages(id)
   }
 
-  async function handleSend(text) {
-    const userMessage = createUserMessage(text)
-    setMessages((prev) => [...prev, userMessage])
-    setIsTyping(true)
-
-    try {
-      const data = await sendChatMessage(activeId, text)
-      const assistantMessage = createAssistantMessage(data.reply)
-      setMessages((prev) => [...prev, assistantMessage])
-
-      if (activeId !== data.conversationId) {
-        setActiveId(data.conversationId)
-      }
-      refreshConversationsSilently()
-    } catch (error) {
-      const errorMessage = createAssistantMessage(error.message, true)
-      setMessages((prev) => [...prev, errorMessage])
-    } finally {
-      setIsTyping(false)
-    }
+  function handleSend(text) {
+    // Fire-and-forget, same as before: neither ChatInput nor EmptyState
+    // await this — the optimistic echo, success, and failure states are
+    // all handled by the mutation's own onMutate/onSuccess/onError above.
+    sendMessageMutation.mutate({ conversationId: activeId, text })
   }
 
   const topbarTitle = activeConversation?.title ?? 'New conversation'
@@ -143,28 +212,32 @@ function Assistant() {
             aria-label="Open conversation list"
             onClick={() => setIsSidebarOpen(true)}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <Icon name="menu" size={20} />
           </button>
           <span className="chat-topbar-title">{topbarTitle}</span>
         </div>
 
-        {isLoadingConversations ? (
+        {isShowingConversationsLoadingState ? (
           <p className="chat-status-message">Loading conversations...</p>
         ) : conversationsError ? (
           <div className="chat-status-message">
             <p>{conversationsError}</p>
-            <Button variant="secondary" onClick={initialize}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setCreateConversationError(null)
+                refetchConversations()
+              }}
+            >
               Retry
             </Button>
           </div>
-        ) : isLoadingMessages ? (
+        ) : isShowingMessagesLoadingState ? (
           <p className="chat-status-message">Loading messages...</p>
         ) : messagesError ? (
           <div className="chat-status-message">
             <p>{messagesError}</p>
-            <Button variant="secondary" onClick={() => loadMessages(activeId)}>
+            <Button variant="secondary" onClick={() => refetchMessages()}>
               Retry
             </Button>
           </div>
@@ -178,6 +251,8 @@ function Assistant() {
                 role={message.role}
                 content={message.content}
                 isError={message.isError}
+                userName={user?.name}
+                userAvatarId={user?.avatarId}
               />
             ))}
             {isTyping && <TypingIndicator />}
@@ -185,7 +260,7 @@ function Assistant() {
           </div>
         )}
 
-        <ChatInput onSend={handleSend} disabled={isTyping || isLoadingConversations} />
+        <ChatInput onSend={handleSend} disabled={isTyping || isShowingConversationsLoadingState} />
       </div>
     </div>
   )

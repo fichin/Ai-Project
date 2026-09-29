@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getDb } from '../db/index.js'
+import { getDevOutboxDb } from '../db/devOutboxDb.js'
 
 const router = Router()
 
@@ -10,10 +10,10 @@ router.get('/dev/outbox', (req, res) => {
 
   const rows =
     typeof to === 'string' && to.length > 0
-      ? getDb()
+      ? getDevOutboxDb()
           .prepare('SELECT * FROM dev_outbox_emails WHERE to_email = ? ORDER BY created_at DESC LIMIT 20')
           .all(to.trim().toLowerCase())
-      : getDb().prepare('SELECT * FROM dev_outbox_emails ORDER BY created_at DESC LIMIT 20').all()
+      : getDevOutboxDb().prepare('SELECT * FROM dev_outbox_emails ORDER BY created_at DESC LIMIT 20').all()
 
   res.json(rows)
 })

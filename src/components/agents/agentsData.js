@@ -6,12 +6,6 @@ export const STATUS_LABELS = {
 
 export const STATUS_FILTERS = ['all', 'active', 'paused', 'draft']
 
-export const DRAFT_AGENT_DEFAULTS = {
-  name: 'Untitled Agent',
-  description: 'Configure this agent to give it a purpose and get started.',
-  status: 'draft',
-}
-
 export function nextStatus(status) {
   if (status === 'active') return 'paused'
   return 'active'

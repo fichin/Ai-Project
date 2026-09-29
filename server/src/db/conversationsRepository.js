@@ -1,42 +1,53 @@
-import { getDb } from './index.js'
+import { getPostgresPool, NOW_UTC_SQL } from './postgresClient.js'
 
-export function listConversationsByUser(userId) {
-  return getDb()
-    .prepare(
-      `SELECT c.*, COUNT(m.id) AS message_count
-       FROM conversations c
-       LEFT JOIN messages m ON m.conversation_id = c.id
-       WHERE c.user_id = ?
-       GROUP BY c.id
-       ORDER BY c.updated_at DESC`,
-    )
-    .all(userId)
+// COUNT() is a bigint in Postgres, returned as a string by `pg` by
+// default — cast to ::int so message_count stays a real number, same as
+// SQLite.
+export async function listConversationsByUser(userId) {
+  const { rows } = await getPostgresPool().query(
+    `SELECT c.*, COUNT(m.id)::int AS message_count
+     FROM conversations c
+     LEFT JOIN messages m ON m.conversation_id = c.id
+     WHERE c.user_id = $1
+     GROUP BY c.id
+     ORDER BY c.updated_at DESC`,
+    [userId],
+  )
+  return rows
 }
 
-export function getConversationByIdForUser(id, userId) {
-  return getDb().prepare('SELECT * FROM conversations WHERE id = ? AND user_id = ?').get(id, userId)
+export async function getConversationByIdForUser(id, userId) {
+  const { rows } = await getPostgresPool().query('SELECT * FROM conversations WHERE id = $1 AND user_id = $2', [
+    id,
+    userId,
+  ])
+  return rows[0] ?? null
 }
 
-export function createConversation(userId, title) {
-  const db = getDb()
-  const result = title
-    ? db.prepare('INSERT INTO conversations (user_id, title) VALUES (?, ?)').run(userId, title)
-    : db.prepare('INSERT INTO conversations (user_id) VALUES (?)').run(userId)
+export async function createConversation(userId, title) {
+  const pool = getPostgresPool()
+  const { rows } = title
+    ? await pool.query('INSERT INTO conversations (user_id, title) VALUES ($1, $2) RETURNING id', [userId, title])
+    : await pool.query('INSERT INTO conversations (user_id) VALUES ($1) RETURNING id', [userId])
 
-  return getConversationByIdForUser(Number(result.lastInsertRowid), userId)
+  return getConversationByIdForUser(rows[0].id, userId)
 }
 
-export function deleteConversation(id, userId) {
-  const result = getDb().prepare('DELETE FROM conversations WHERE id = ? AND user_id = ?').run(id, userId)
-  return result.changes > 0
+export async function deleteConversation(id, userId) {
+  const result = await getPostgresPool().query('DELETE FROM conversations WHERE id = $1 AND user_id = $2', [
+    id,
+    userId,
+  ])
+  return result.rowCount > 0
 }
 
-export function touchConversation(id) {
-  getDb().prepare("UPDATE conversations SET updated_at = datetime('now') WHERE id = ?").run(id)
+export async function touchConversation(id) {
+  await getPostgresPool().query(`UPDATE conversations SET updated_at = ${NOW_UTC_SQL} WHERE id = $1`, [id])
 }
 
-export function setConversationTitle(id, title) {
-  getDb()
-    .prepare("UPDATE conversations SET title = ?, updated_at = datetime('now') WHERE id = ?")
-    .run(title, id)
+export async function setConversationTitle(id, title) {
+  await getPostgresPool().query(`UPDATE conversations SET title = $1, updated_at = ${NOW_UTC_SQL} WHERE id = $2`, [
+    title,
+    id,
+  ])
 }

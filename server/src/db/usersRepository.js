@@ -1,32 +1,36 @@
-import { getDb } from './index.js'
+import { getPostgresPool, NOW_UTC_SQL } from './postgresClient.js'
 
-export function getUserByEmail(email) {
-  return getDb().prepare('SELECT * FROM users WHERE email = ?').get(email)
+export async function getUserByEmail(email) {
+  const { rows } = await getPostgresPool().query('SELECT * FROM users WHERE email = $1', [email])
+  return rows[0] ?? null
 }
 
-export function getUserById(id) {
-  return getDb().prepare('SELECT * FROM users WHERE id = ?').get(id)
+export async function getUserById(id) {
+  const { rows } = await getPostgresPool().query('SELECT * FROM users WHERE id = $1', [id])
+  return rows[0] ?? null
 }
 
-export function createUser({ email, name, passwordHash }) {
-  const db = getDb()
-  const result = db
-    .prepare('INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)')
-    .run(email, name, passwordHash)
+export async function createUser({ email, name, passwordHash }) {
+  const pool = getPostgresPool()
+  const { rows } = await pool.query(
+    'INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id',
+    [email, name, passwordHash],
+  )
 
-  return getUserById(Number(result.lastInsertRowid))
+  return getUserById(rows[0].id)
 }
 
-export function updateUserPassword(userId, passwordHash) {
-  getDb()
-    .prepare(`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`)
-    .run(passwordHash, userId)
+export async function updateUserPassword(userId, passwordHash) {
+  await getPostgresPool().query(
+    `UPDATE users SET password_hash = $1, updated_at = ${NOW_UTC_SQL} WHERE id = $2`,
+    [passwordHash, userId],
+  )
 }
 
 // Partial update: only the fields present in `fields` are changed, the rest
 // keep their current value (same merge pattern as projectsRepository).
-export function updateUserProfile(userId, fields) {
-  const current = getUserById(userId)
+export async function updateUserProfile(userId, fields) {
+  const current = await getUserById(userId)
   if (!current) {
     return null
   }
@@ -34,13 +38,14 @@ export function updateUserProfile(userId, fields) {
   const name = fields.name ?? current.name
   const avatarId = fields.avatarId !== undefined ? fields.avatarId : current.avatar_id
 
-  getDb()
-    .prepare(`UPDATE users SET name = ?, avatar_id = ?, updated_at = datetime('now') WHERE id = ?`)
-    .run(name, avatarId, userId)
+  await getPostgresPool().query(
+    `UPDATE users SET name = $1, avatar_id = $2, updated_at = ${NOW_UTC_SQL} WHERE id = $3`,
+    [name, avatarId, userId],
+  )
 
   return getUserById(userId)
 }
 
-export function markEmailVerified(userId) {
-  getDb().prepare(`UPDATE users SET email_verified_at = datetime('now') WHERE id = ?`).run(userId)
+export async function markEmailVerified(userId) {
+  await getPostgresPool().query(`UPDATE users SET email_verified_at = ${NOW_UTC_SQL} WHERE id = $1`, [userId])
 }

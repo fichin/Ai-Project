@@ -1,4 +1,4 @@
-import { getDb } from './index.js'
+import { getPostgresPool, utcTextDaysAgo } from './postgresClient.js'
 
 function normalizeTrend(row) {
   const total = row.total ?? 0
@@ -13,44 +13,56 @@ function normalizeTrend(row) {
   return { total, last7Days, trendPct }
 }
 
-export function getStatsForUser(userId) {
-  const db = getDb()
+// SUM(CASE WHEN ... THEN 1 ELSE 0 END) is a bigint in Postgres too (same as
+// COUNT), returned as a string by `pg` by default — every aggregate below
+// is cast to ::int. SUM over zero matching rows is SQL NULL (true in both
+// SQLite and Postgres), which the `row.last7 ?? 0` fallbacks below already
+// handled before this migration and still do — casting NULL::int is still
+// NULL, so that fallback keeps working unchanged.
+export async function getStatsForUser(userId) {
+  const pool = getPostgresPool()
+  const sevenDaysAgo = utcTextDaysAgo(7)
+  const fourteenDaysAgo = utcTextDaysAgo(14)
 
-  const conversationRow = db
-    .prepare(
-      `SELECT
-         COUNT(*) AS total,
-         SUM(CASE WHEN created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS last7,
-         SUM(CASE WHEN created_at >= datetime('now', '-14 days') AND created_at < datetime('now', '-7 days') THEN 1 ELSE 0 END) AS prev7
-       FROM conversations WHERE user_id = ?`,
-    )
-    .get(userId)
+  const {
+    rows: [conversationRow],
+  } = await pool.query(
+    `SELECT
+       COUNT(*)::int AS total,
+       SUM(CASE WHEN created_at >= $2 THEN 1 ELSE 0 END)::int AS last7,
+       SUM(CASE WHEN created_at >= $3 AND created_at < $2 THEN 1 ELSE 0 END)::int AS prev7
+     FROM conversations WHERE user_id = $1`,
+    [userId, sevenDaysAgo, fourteenDaysAgo],
+  )
 
-  const messageRow = db
-    .prepare(
-      `SELECT
-         COUNT(*) AS total,
-         SUM(CASE WHEN m.created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS last7,
-         SUM(CASE WHEN m.created_at >= datetime('now', '-14 days') AND m.created_at < datetime('now', '-7 days') THEN 1 ELSE 0 END) AS prev7
-       FROM messages m
-       JOIN conversations c ON c.id = m.conversation_id
-       WHERE c.user_id = ?`,
-    )
-    .get(userId)
+  const {
+    rows: [messageRow],
+  } = await pool.query(
+    `SELECT
+       COUNT(*)::int AS total,
+       SUM(CASE WHEN m.created_at >= $2 THEN 1 ELSE 0 END)::int AS last7,
+       SUM(CASE WHEN m.created_at >= $3 AND m.created_at < $2 THEN 1 ELSE 0 END)::int AS prev7
+     FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     WHERE c.user_id = $1`,
+    [userId, sevenDaysAgo, fourteenDaysAgo],
+  )
 
-  const projectRow = db
-    .prepare(
-      `SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active
-       FROM projects WHERE user_id = ?`,
-    )
-    .get(userId)
+  const {
+    rows: [projectRow],
+  } = await pool.query(
+    `SELECT COUNT(*)::int AS total, SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END)::int AS active
+     FROM projects WHERE user_id = $1`,
+    [userId],
+  )
 
-  const agentRow = db
-    .prepare(
-      `SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active
-       FROM agents WHERE user_id = ?`,
-    )
-    .get(userId)
+  const {
+    rows: [agentRow],
+  } = await pool.query(
+    `SELECT COUNT(*)::int AS total, SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END)::int AS active
+     FROM agents WHERE user_id = $1`,
+    [userId],
+  )
 
   return {
     conversations: normalizeTrend(conversationRow),
@@ -62,18 +74,23 @@ export function getStatsForUser(userId) {
 
 // Real per-day message counts for the current user, zero-filled so the chart
 // always renders a continuous series even on days with no activity.
-export function getUsageSeries(userId, days = 14) {
-  const db = getDb()
-  const rows = db
-    .prepare(
-      `SELECT date(m.created_at) AS day, COUNT(*) AS count
-       FROM messages m
-       JOIN conversations c ON c.id = m.conversation_id
-       WHERE c.user_id = ? AND m.created_at >= datetime('now', ?)
-       GROUP BY day
-       ORDER BY day ASC`,
-    )
-    .all(userId, `-${days - 1} days`)
+export async function getUsageSeries(userId, days = 14) {
+  const pool = getPostgresPool()
+  const boundary = utcTextDaysAgo(days - 1)
+
+  // created_at is TEXT ("YYYY-MM-DD HH:MM:SS"), not a native timestamp, so
+  // SQLite's date() (which parses and reformats it) doesn't apply — the
+  // first 10 characters of that fixed-width format are always the date
+  // portion, so a plain substring reproduces it without any parsing at all.
+  const { rows } = await pool.query(
+    `SELECT LEFT(m.created_at, 10) AS day, COUNT(*)::int AS count
+     FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     WHERE c.user_id = $1 AND m.created_at >= $2
+     GROUP BY day
+     ORDER BY day ASC`,
+    [userId, boundary],
+  )
 
   const byDay = new Map(rows.map((row) => [row.day, row.count]))
   const series = []
@@ -86,43 +103,51 @@ export function getUsageSeries(userId, days = 14) {
   return series
 }
 
-export function getAgentActivity(userId, limit = 6) {
-  return getDb()
-    .prepare(
-      `SELECT a.id, a.name, a.status, a.updated_at, a.project_id, p.name AS project_name,
-              COUNT(DISTINCT c.id) AS conversation_count
-       FROM agents a
-       LEFT JOIN projects p ON p.id = a.project_id
-       LEFT JOIN conversations c ON c.agent_id = a.id
-       WHERE a.user_id = ?
-       GROUP BY a.id
-       ORDER BY a.updated_at DESC
-       LIMIT ?`,
-    )
-    .all(userId, limit)
+export async function getAgentActivity(userId, limit = 6) {
+  // GROUP BY a.id alone (as SQLite allowed) isn't valid in Postgres once
+  // p.name — from the joined projects table — is selected: Postgres only
+  // waives the "every selected column must be grouped" rule for columns
+  // functionally dependent on a grouped primary key from the *same* table,
+  // not across a join. p.name is single-valued per agent regardless (each
+  // agent has at most one project), so adding it to GROUP BY changes
+  // nothing about the result, only satisfies Postgres's stricter check.
+  const { rows } = await getPostgresPool().query(
+    `SELECT a.id, a.name, a.status, a.updated_at, a.project_id, p.name AS project_name,
+            COUNT(DISTINCT c.id)::int AS conversation_count
+     FROM agents a
+     LEFT JOIN projects p ON p.id = a.project_id
+     LEFT JOIN conversations c ON c.agent_id = a.id
+     WHERE a.user_id = $1
+     GROUP BY a.id, p.name
+     ORDER BY a.updated_at DESC
+     LIMIT $2`,
+    [userId, limit],
+  )
+  return rows
 }
 
-// A merged, honest activity feed built from the timestamps already on
-// projects/agents/conversations — no separate audit-log table exists (or is
-// needed) just for the dashboard.
-export function getRecentActivity(userId, limit = 8) {
-  return getDb()
-    .prepare(
-      `SELECT * FROM (
-         SELECT id, 'project' AS entity, name AS title, status AS detail, created_at, updated_at,
-                CASE WHEN created_at = updated_at THEN 'created' ELSE 'updated' END AS action
-         FROM projects WHERE user_id = ?
-         UNION ALL
-         SELECT id, 'agent' AS entity, name AS title, status AS detail, created_at, updated_at,
-                CASE WHEN created_at = updated_at THEN 'created' ELSE 'updated' END AS action
-         FROM agents WHERE user_id = ?
-         UNION ALL
-         SELECT id, 'conversation' AS entity, COALESCE(title, 'New conversation') AS title, NULL AS detail,
-                created_at, updated_at, 'started' AS action
-         FROM conversations WHERE user_id = ?
-       )
-       ORDER BY updated_at DESC
-       LIMIT ?`,
-    )
-    .all(userId, userId, userId, limit)
+// A merged activity feed: real logged events (activity_events — the only
+// source that can still show a deletion, since a deleted project/agent row
+// no longer exists to derive an entry from) plus conversations, which have
+// no event type of their own yet and are still derived from their own
+// timestamp. entity_name is a snapshot taken at event time, so this reads
+// correctly even for since-deleted projects/agents.
+export async function getRecentActivity(userId, limit = 8) {
+  // Postgres requires a derived table in FROM to be aliased (unlike
+  // SQLite, which allowed the bare subquery) — "combined" added below,
+  // nothing else about the query's shape changed.
+  const { rows } = await getPostgresPool().query(
+    `SELECT * FROM (
+       SELECT id, type AS action_type, entity_name AS title, created_at AS timestamp
+       FROM activity_events WHERE user_id = $1
+       UNION ALL
+       SELECT id, 'conversation_started' AS action_type, COALESCE(title, 'New conversation') AS title,
+              updated_at AS timestamp
+       FROM conversations WHERE user_id = $2
+     ) AS combined
+     ORDER BY timestamp DESC
+     LIMIT $3`,
+    [userId, userId, limit],
+  )
+  return rows
 }

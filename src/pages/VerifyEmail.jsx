@@ -12,13 +12,11 @@ function VerifyEmail() {
   const [resendEmail, setResendEmail] = useState('')
   const [resendStatus, setResendStatus] = useState(null)
 
-  // Verifying a token is single-use and non-idempotent (the token is
-  // deleted on first use). In development, React StrictMode intentionally
-  // mounts effects twice, which would otherwise send this request twice —
-  // the first call would succeed but its result gets discarded, and the
-  // second would correctly report the token as already used. This ref
-  // survives that double-mount (unlike component state) and makes sure the
-  // request only ever fires once per real mount.
+  // Verification is single-use and non-idempotent (the token is deleted on
+  // first use), but React StrictMode intentionally double-mounts effects in
+  // development — without a guard, the second call would wrongly report an
+  // already-used token. A ref (unlike state) survives that double-mount, so
+  // the request only ever fires once per real mount.
   const hasRequestedRef = useRef(false)
 
   useEffect(() => {

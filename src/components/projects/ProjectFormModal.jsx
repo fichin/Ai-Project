@@ -2,6 +2,8 @@ import { useState } from 'react'
 import Modal from '../Modal'
 import Button from '../Button'
 import { STATUS_LABELS } from './projectsData'
+import { required } from '../../lib/validation'
+import { useSubmitState } from '../../hooks/useSubmitState'
 import './ProjectFormModal.css'
 
 function ProjectFormModal({ project, onClose, onSubmit }) {
@@ -9,26 +11,18 @@ function ProjectFormModal({ project, onClose, onSubmit }) {
   const [name, setName] = useState(project?.name ?? '')
   const [description, setDescription] = useState(project?.description ?? '')
   const [status, setStatus] = useState(project?.status ?? 'planning')
-  const [error, setError] = useState(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { error, setError, isSubmitting, submit } = useSubmitState()
 
   async function handleSubmit(event) {
     event.preventDefault()
 
-    if (name.trim().length === 0) {
-      setError('Project name is required.')
+    const validationError = required(name, 'Project name is required.')
+    if (validationError) {
+      setError(validationError)
       return
     }
 
-    setError(null)
-    setIsSubmitting(true)
-    try {
-      await onSubmit({ name: name.trim(), description, status })
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsSubmitting(false)
-    }
+    await submit(() => onSubmit({ name: name.trim(), description, status }))
   }
 
   return (

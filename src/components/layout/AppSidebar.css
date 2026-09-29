@@ -8,6 +8,8 @@
   border-right: 1px solid var(--border-subtle);
   padding: 20px 16px;
   overflow-y: auto;
+  overflow-x: hidden;
+  transition: width var(--transition-base) ease, padding var(--transition-base) ease;
 }
 
 .app-sidebar-logo {
@@ -67,6 +69,42 @@
   opacity: 0.85;
 }
 
+.app-sidebar-link-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-sidebar-collapse-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
+}
+
+.app-sidebar-collapse-toggle:hover {
+  background: var(--bg-elevated-hover);
+  color: var(--text-primary);
+}
+
+.app-sidebar-collapse-toggle svg {
+  flex-shrink: 0;
+  transition: transform var(--transition-fast) ease;
+}
+
+.app-sidebar-collapse-icon-flipped {
+  transform: rotate(180deg);
+}
+
 .app-sidebar-link:hover {
   background: var(--bg-elevated-hover);
   color: var(--text-primary);
@@ -85,7 +123,7 @@
   bottom: 8px;
   width: 3px;
   border-radius: var(--radius-full);
-  background: var(--gradient-accent);
+  background: var(--accent-current);
 }
 
 .app-sidebar-footer {
@@ -148,6 +186,35 @@
   color: var(--text-primary);
 }
 
+/* Collapsed is a desktop-only density preference — on a mobile overlay
+   drawer (below) it wouldn't mean anything, so it's scoped to the width the
+   sidebar is actually docked at. */
+@media (min-width: 901px) {
+  .app-sidebar-collapsed {
+    width: var(--sidebar-width-collapsed);
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .app-sidebar-collapsed .app-sidebar-logo-text,
+  .app-sidebar-collapsed .app-sidebar-link-label,
+  .app-sidebar-collapsed .app-sidebar-user-info {
+    display: none;
+  }
+
+  .app-sidebar-collapsed .app-sidebar-link {
+    justify-content: center;
+  }
+
+  .app-sidebar-collapsed .app-sidebar-collapse-toggle {
+    justify-content: center;
+  }
+
+  .app-sidebar-collapsed .app-sidebar-footer {
+    justify-content: center;
+  }
+}
+
 @media (max-width: 900px) {
   .app-sidebar {
     position: fixed;
@@ -162,5 +229,9 @@
 
   .app-sidebar-open {
     transform: translateX(0);
+  }
+
+  .app-sidebar-collapse-toggle {
+    display: none;
   }
 }

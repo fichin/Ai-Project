@@ -19,24 +19,14 @@
   margin-bottom: 36px;
 }
 
-.agents-header h1 {
-  margin: 0 0 8px;
-  color: var(--text-primary);
-  font-size: clamp(28px, 4vw, 38px);
-  letter-spacing: -1px;
-}
-
 .agents-header p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 15px;
   max-width: 480px;
 }
 
 .agents-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+  gap: var(--density-grid-gap);
 }
 
 .agents-status-message {

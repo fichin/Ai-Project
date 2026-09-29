@@ -1,0 +1,80 @@
+.agent-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agent-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.agent-form-field input,
+.agent-form-field textarea,
+.agent-form-field select {
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated-hover);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition-fast) ease;
+}
+
+.agent-form-field textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+.agent-form-field input:focus,
+.agent-form-field textarea:focus,
+.agent-form-field select:focus {
+  border-color: var(--border-strong);
+}
+
+.agent-form-locked-project {
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.agent-form-hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.agent-form-hint a {
+  color: var(--accent-current);
+  font-weight: 500;
+}
+
+.agent-form-error {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--status-danger-border);
+  border-radius: var(--radius-sm);
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
+  font-size: 13px;
+}
+
+.agent-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}

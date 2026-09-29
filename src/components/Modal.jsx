@@ -1,14 +1,20 @@
-import { useEffect } from 'react'
+import { useRef } from 'react'
+import { useDismissableLayer } from '../hooks/useDismissableLayer'
+import Icon from './icons/Icon'
 import './Modal.css'
 
-function Modal({ title, onClose, children, closeOnOverlayClick = true }) {
-  useEffect(() => {
-    function handleKeyDown(event) {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+// `size="lg"` widens the panel for content that needs more room than the
+// default form-sized 460px (e.g. ChillRunnerModal) — every other caller
+// omits it and keeps today's width unchanged.
+function Modal({ title, onClose, children, closeOnOverlayClick = true, size }) {
+  const panelRef = useRef(null)
+
+  // Escape-to-close and the focus trap/restore are shared with every other
+  // dialog-shaped overlay via useDismissableLayer (see its own file for the
+  // full rationale). Click-outside-to-close stays right here as the
+  // overlay's own onClick below — it's one line, not worth centralizing,
+  // and centralizing it too would double-fire alongside the overlay click.
+  useDismissableLayer({ onDismiss: onClose, dialogRef: panelRef })
 
   return (
     <div
@@ -18,7 +24,8 @@ function Modal({ title, onClose, children, closeOnOverlayClick = true }) {
       }}
     >
       <div
-        className="modal-panel"
+        ref={panelRef}
+        className={`modal-panel ${size === 'lg' ? 'modal-panel-lg' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -28,9 +35,7 @@ function Modal({ title, onClose, children, closeOnOverlayClick = true }) {
           <div className="modal-header">
             <h2>{title}</h2>
             <button className="modal-close" aria-label="Close dialog" onClick={onClose}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
+              <Icon name="close" size={16} />
             </button>
           </div>
         )}

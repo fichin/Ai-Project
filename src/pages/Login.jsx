@@ -1,21 +1,25 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
+import PasswordInput from '../components/PasswordInput'
 import CheckYourEmailPanel from '../components/auth/CheckYourEmailPanel'
 import { useAuth } from '../context/useAuth'
+import { usePreferences } from '../context/usePreferences'
+import { fetchPreferences } from '../components/preferences/preferencesApi'
+import { useSubmitState } from '../hooks/useSubmitState'
 import './Auth.css'
 
 function Login() {
   const { user, isLoading, login } = useAuth()
+  const { preferences } = usePreferences()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { error, setError, isSubmitting, submit } = useSubmitState()
   const [unverifiedEmail, setUnverifiedEmail] = useState(null)
 
-  const destination = location.state?.from ?? '/dashboard'
+  const destination = location.state?.from ?? preferences?.defaultLandingPage ?? '/dashboard'
 
   if (!isLoading && user) {
     return <Navigate to={destination} replace />
@@ -23,20 +27,32 @@ function Login() {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    setError(null)
-    setIsSubmitting(true)
-    try {
-      await login(email, password)
-      navigate(destination, { replace: true })
-    } catch (err) {
-      if (err.code === 'EMAIL_NOT_VERIFIED') {
-        setUnverifiedEmail(err.email ?? email.trim().toLowerCase())
-      } else {
-        setError(err.message)
-      }
-    } finally {
-      setIsSubmitting(false)
-    }
+    await submit(
+      async () => {
+        await login(email, password)
+        // The preferences context may not have finished fetching the fresh
+        // session's preferences yet (it starts loading the instant `user` is
+        // set, same render this awaits past) — fetch directly so a saved
+        // default landing page is honored from the very first post-login
+        // navigation, not just on subsequent visits.
+        let target = location.state?.from
+        if (!target) {
+          target = await fetchPreferences()
+            .then((prefs) => prefs.defaultLandingPage)
+            .catch(() => '/dashboard')
+        }
+        navigate(target, { replace: true })
+      },
+      {
+        onError: (err) => {
+          if (err.code === 'EMAIL_NOT_VERIFIED') {
+            setUnverifiedEmail(err.email ?? email.trim().toLowerCase())
+          } else {
+            setError(err.message)
+          }
+        },
+      },
+    )
   }
 
   if (unverifiedEmail) {
@@ -83,8 +99,7 @@ function Login() {
                 Forgot password?
               </Link>
             </span>
-            <input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required

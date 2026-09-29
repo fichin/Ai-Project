@@ -1,0 +1,38 @@
+.command-showcase-frame {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
+}
+
+.command-showcase-panel {
+  width: 100%;
+  max-width: 620px;
+  max-height: none;
+  animation: none;
+  box-shadow: var(--shadow-lg), 0 0 60px -20px rgba(91, 140, 255, 0.35);
+}
+
+.command-palette-search input {
+  cursor: default;
+}
+
+.command-showcase-item {
+  cursor: default;
+  gap: 12px;
+}
+
+.command-showcase-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: var(--text-secondary);
+}
+
+.command-palette-item-active .command-showcase-item-left {
+  color: var(--accent-current);
+}
+
+.command-palette-item-active .command-palette-item-label {
+  color: var(--accent-current);
+}

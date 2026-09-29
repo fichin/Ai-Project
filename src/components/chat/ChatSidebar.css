@@ -45,8 +45,9 @@
 }
 
 .conversation-item {
+  position: relative;
   overflow: hidden;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 16px;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -67,6 +68,20 @@
 .conversation-item.active {
   background: var(--bg-elevated);
   color: var(--text-primary);
+}
+
+/* Same active-indicator language as AppSidebar's nav links, so the
+   conversation list reads as the same kind of "list with a current item"
+   even though it lives in its own panel. */
+.conversation-item.active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: var(--accent-current);
 }
 
 .sidebar-overlay {

@@ -1,13 +1,12 @@
+import ChatAvatar from './ChatAvatar'
 import './ChatMessage.css'
 
-function ChatMessage({ role, content, isError }) {
+function ChatMessage({ role, content, isError, userName, userAvatarId }) {
   const isUser = role === 'user'
 
   return (
     <div className={`chat-message ${isUser ? 'chat-message-user' : 'chat-message-assistant'}`}>
-      <div className="chat-avatar" aria-hidden="true">
-        {isUser ? 'Y' : 'AI'}
-      </div>
+      <ChatAvatar role={role} userName={userName} userAvatarId={userAvatarId} />
       <div className={`chat-bubble ${isError ? 'chat-bubble-error' : ''}`}>{content}</div>
     </div>
   )

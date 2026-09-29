@@ -1,0 +1,194 @@
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  justify-content: center;
+  padding: 12vh 20px 20px;
+  background: rgba(5, 6, 8, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: command-palette-fade-in var(--transition-base) ease;
+}
+
+.command-palette-panel {
+  width: 100%;
+  max-width: 560px;
+  max-height: min(480px, 70vh);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: command-palette-scale-in var(--transition-base) var(--ease-out);
+}
+
+.command-palette-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.command-palette-search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.command-palette-search input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.command-palette-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast) ease, color var(--transition-fast) ease,
+    background var(--transition-fast) ease;
+}
+
+.command-palette-close:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated-hover);
+  color: var(--text-primary);
+}
+
+.command-palette-esc {
+  padding: 3px 7px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated-hover);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.command-palette-results {
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.command-palette-group {
+  margin-bottom: 4px;
+}
+
+.command-palette-group-label {
+  padding: 8px 10px 4px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.command-palette-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
+}
+
+.command-palette-item-label {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-palette-item-description {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.command-palette-item-active {
+  background: var(--bg-elevated-hover);
+}
+
+.command-palette-item-active .command-palette-item-label {
+  color: var(--accent-current);
+}
+
+.command-palette-item-danger .command-palette-item-label {
+  color: var(--status-danger);
+}
+
+.command-palette-empty {
+  padding: 40px 20px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  text-align: center;
+}
+
+@keyframes command-palette-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes command-palette-scale-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .command-palette-overlay,
+  .command-palette-panel {
+    animation: none;
+  }
+}
+
+[data-reduced-motion='true'] .command-palette-overlay,
+[data-reduced-motion='true'] .command-palette-panel {
+  animation: none;
+}
+
+@media (max-width: 600px) {
+  .command-palette-overlay {
+    padding: 6vh 12px 12px;
+  }
+
+  .command-palette-panel {
+    max-height: min(520px, 80vh);
+  }
+}

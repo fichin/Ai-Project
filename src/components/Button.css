@@ -16,13 +16,13 @@
 
 .btn-primary {
   background: var(--text-primary);
-  color: #08090b;
+  color: var(--text-inverse);
 }
 
 .btn-primary:hover {
   opacity: 0.9;
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px -8px rgba(91, 140, 255, 0.45);
+  box-shadow: 0 8px 24px -8px var(--accent-glow);
 }
 
 .btn-secondary {
