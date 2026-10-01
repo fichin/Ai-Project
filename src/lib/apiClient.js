@@ -1,4 +1,16 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+// In production this resolves to '' (a relative /api/... request, same
+// origin as the page) rather than the backend's own domain — see
+// vercel.json's /api/:path* rewrite, which proxies those requests to the
+// Render backend server-side. That's not just tidier routing: it's what
+// makes the session cookie first-party. Calling the backend's own domain
+// directly made it a cross-site request, and mobile browsers (Safari/iOS
+// in particular, but increasingly Chrome too) block or strip a
+// cross-site SameSite=None cookie far more aggressively than desktop
+// does — consistently, not intermittently, which is exactly the "works
+// on desktop, never works on mobile" bug this fixes. VITE_API_BASE_URL
+// still wins when explicitly set (local dev, where frontend and backend
+// run on different localhost ports with no proxy in front of them).
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:4000')
 
 // A request cancelled via AbortController rejects with this — callers use it
 // to skip setting error state for a cancellation the user never needs to see
