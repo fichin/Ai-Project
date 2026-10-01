@@ -18,6 +18,10 @@ export const env = {
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
   anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5',
+  // Free-tier fallback AI provider (see services/ai/index.js) — only used
+  // when ANTHROPIC_API_KEY isn't set, so a real key always takes priority.
+  groqApiKey: process.env.GROQ_API_KEY || '',
+  groqModel: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
   resendApiKey: process.env.RESEND_API_KEY || '',
   // Postgres/Supabase connection string — this is the app's real database
   // (see postgresClient.js and every db/*Repository.js file).

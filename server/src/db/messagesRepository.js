@@ -22,6 +22,17 @@ export async function countMessages(conversationId) {
   return rows[0].count
 }
 
+// Counts assistant replies specifically (not total messages) — used to
+// enforce MAX_ASSISTANT_MESSAGES_PER_CONVERSATION (see config/chat.js),
+// since that's what actually consumes the AI provider's quota.
+export async function countAssistantMessages(conversationId) {
+  const { rows } = await getPostgresPool().query(
+    "SELECT COUNT(*)::int AS count FROM messages WHERE conversation_id = $1 AND role = 'assistant'",
+    [conversationId],
+  )
+  return rows[0].count
+}
+
 export async function createMessage(conversationId, role, content) {
   const pool = getPostgresPool()
   const { rows } = await pool.query(
