@@ -8,13 +8,35 @@ import {
   updateProfileRequest,
 } from '../components/auth/authApi'
 
+// A 401 here specifically can be a transient race rather than a genuinely
+// missing/expired session — same reasoning as queryClient.js's
+// isUnauthorized, but this call sits outside TanStack Query (it runs once
+// on mount, before there's a user to key any query on), so it needs its
+// own one-retry safety net. A short delay first gives whatever caused the
+// race (e.g. several concurrent credentialed cross-site fetches firing on
+// first load) a moment to clear, matching queryClient's own first-retry
+// backoff. Any other error (including a second 401) is not retried.
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function fetchCurrentUserWithRetry() {
+  try {
+    return await fetchCurrentUser()
+  } catch (error) {
+    if (error?.status !== 401) throw error
+    await wait(1000)
+    return fetchCurrentUser()
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
   async function restoreSession() {
     try {
-      const data = await fetchCurrentUser()
+      const data = await fetchCurrentUserWithRetry()
       setUser(data.user)
     } catch {
       setUser(null)

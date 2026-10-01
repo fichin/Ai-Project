@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { AuthProvider } from './AuthProvider'
 import { useAuth } from './useAuth'
@@ -48,5 +48,57 @@ describe('AuthProvider — memoized context value', () => {
 
     expect(result.current).not.toBe(before)
     expect(result.current.user).toEqual({ id: 1, name: 'Ada' })
+  })
+})
+
+function makeUnauthorizedError() {
+  return Object.assign(new Error('Authentication required.'), { status: 401 })
+}
+
+describe('AuthProvider — session restore retry on 401', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('retries once after a 401 and recovers if the retry succeeds', async () => {
+    vi.useFakeTimers()
+    fetchCurrentUser.mockRejectedValueOnce(makeUnauthorizedError()).mockResolvedValueOnce({
+      user: { id: 1, name: 'Ada' },
+    })
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(fetchCurrentUser).toHaveBeenCalledTimes(2)
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.user).toEqual({ id: 1, name: 'Ada' })
+  })
+
+  it('gives up after a second consecutive 401 and treats the session as logged out', async () => {
+    vi.useFakeTimers()
+    fetchCurrentUser.mockRejectedValue(makeUnauthorizedError())
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(fetchCurrentUser).toHaveBeenCalledTimes(2)
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.user).toBeNull()
+  })
+
+  it('does not retry a non-401 error', async () => {
+    fetchCurrentUser.mockRejectedValueOnce(new Error('Internal server error'))
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(fetchCurrentUser).toHaveBeenCalledTimes(1)
+    expect(result.current.user).toBeNull()
   })
 })

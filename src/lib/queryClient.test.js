@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isColdStartFailure, queryClient } from './queryClient'
+import { isColdStartFailure, isUnauthorized, queryClient } from './queryClient'
 
 function makeHttpError(status) {
   const error = new Error('The server returned an error. Please try again.')
@@ -28,6 +28,22 @@ describe('isColdStartFailure', () => {
   })
 })
 
+describe('isUnauthorized', () => {
+  it('returns true for a 401 response', () => {
+    expect(isUnauthorized(makeHttpError(401))).toBe(true)
+  })
+
+  it('returns false for any other HTTP error response', () => {
+    expect(isUnauthorized(makeHttpError(403))).toBe(false)
+    expect(isUnauthorized(makeHttpError(500))).toBe(false)
+  })
+
+  it('returns false for a status-less network error or an abort', () => {
+    expect(isUnauthorized(new Error("Couldn't reach the server."))).toBe(false)
+    expect(isUnauthorized(makeAbortError())).toBe(false)
+  })
+})
+
 describe('queryClient default retry behavior', () => {
   const { retry, retryDelay } = queryClient.getDefaultOptions().queries
 
@@ -38,7 +54,14 @@ describe('queryClient default retry behavior', () => {
     expect(retry(2, error)).toBe(false)
   })
 
-  it('never retries a real HTTP error response, even on the first failure', () => {
+  it('retries a 401 exactly once, then gives up', () => {
+    const error = makeHttpError(401)
+    expect(retry(0, error)).toBe(true)
+    expect(retry(1, error)).toBe(false)
+  })
+
+  it('never retries any other real HTTP error response, even on the first failure', () => {
+    expect(retry(0, makeHttpError(403))).toBe(false)
     expect(retry(0, makeHttpError(500))).toBe(false)
   })
 
