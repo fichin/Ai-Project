@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import { env } from './config/env.js'
 import healthRoutes from './routes/health.routes.js'
 import authRoutes from './routes/auth.routes.js'
@@ -24,6 +25,12 @@ export function createApp() {
   // This hop count makes req.ip resolve to that entry regardless of what
   // an attacker prepends to the front of the header.
   app.set('trust proxy', env.trustProxyHops)
+
+  // Helmet's defaults (HSTS, X-Content-Type-Options, X-Frame-Options,
+  // a restrictive CSP, etc.) are written for apps that serve their own
+  // HTML; this is a pure JSON API with no templates or inline scripts of
+  // its own to carve exceptions for, so the defaults apply cleanly as-is.
+  app.use(helmet())
 
   app.use(cors({ origin: env.corsOrigin, credentials: true }))
   // 20kb comfortably covers every real request body this API accepts (the
