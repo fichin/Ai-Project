@@ -42,7 +42,7 @@ jobs:
         run: npm run build
 
   backend:
-    name: Backend (install check)
+    name: Backend (install, test)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -59,10 +59,15 @@ jobs:
         working-directory: server
         run: npm ci
 
-      # There's no backend test framework yet (see the README), so this is
-      # a lightweight correctness net in the meantime: every source file
-      # must at least parse. Catches typos/syntax errors in routes or
-      # services before they ever reach a deploy.
+      # Uses Node's built-in test runner (see server/package.json) — no
+      # extra framework dependency needed.
+      - name: Run tests
+        working-directory: server
+        run: npm test
+
+      # Backstop for everything the test suite above doesn't import/exercise
+      # directly: every source file must at least parse. Catches typos/
+      # syntax errors in routes or services before they ever reach a deploy.
       - name: Syntax-check source files
         working-directory: server
         run: find src -name "*.js" -exec node --check {} +
