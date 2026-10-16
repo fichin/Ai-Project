@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { env } from '../../../config/env.js'
+import { SYSTEM_PROMPT } from '../../../config/chat.js'
 
 let client = null
 
@@ -26,6 +27,7 @@ export const anthropicProvider = {
     const response = await anthropic.messages.create({
       model: env.anthropicModel,
       max_tokens: 1024,
+      system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: message }],
     })
 
