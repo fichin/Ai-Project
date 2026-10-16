@@ -33,6 +33,30 @@ export async function countAssistantMessages(conversationId) {
   return rows[0].count
 }
 
+// Used to enforce MAX_AI_MESSAGES_PER_USER_PER_DAY (see config/env.js
+// aiUsageCaps) — joins out to conversations since messages themselves
+// aren't tagged with a user id, only the conversation they belong to.
+export async function countAssistantMessagesByUserSince(userId, since) {
+  const { rows } = await getPostgresPool().query(
+    `SELECT COUNT(*)::int AS count
+     FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     WHERE c.user_id = $1 AND m.role = 'assistant' AND m.created_at >= $2`,
+    [userId, since],
+  )
+  return rows[0].count
+}
+
+// Used to enforce MAX_AI_CALLS_PER_DAY, the global kill switch across every
+// user combined (see config/env.js aiUsageCaps).
+export async function countAssistantMessagesSince(since) {
+  const { rows } = await getPostgresPool().query(
+    "SELECT COUNT(*)::int AS count FROM messages WHERE role = 'assistant' AND created_at >= $1",
+    [since],
+  )
+  return rows[0].count
+}
+
 export async function createMessage(conversationId, role, content) {
   const pool = getPostgresPool()
   const { rows } = await pool.query(

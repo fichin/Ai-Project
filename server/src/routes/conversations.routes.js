@@ -6,6 +6,7 @@ import {
   deleteConversation,
 } from '../db/conversationsRepository.js'
 import { listMessagesByConversation } from '../db/messagesRepository.js'
+import { assertUnderConversationLimit } from '../services/chatService.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 
 const router = Router()
@@ -53,6 +54,7 @@ router.post(
     }
 
     const userId = req.user.id
+    await assertUnderConversationLimit(userId)
     const trimmedTitle = typeof title === 'string' && title.trim().length > 0 ? title.trim() : null
     const conversation = await createConversation(userId, trimmedTitle)
     res.status(201).json(toConversationDto(conversation))

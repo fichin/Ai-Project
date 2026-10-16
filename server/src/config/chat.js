@@ -17,3 +17,15 @@ export const MAX_ASSISTANT_MESSAGES_PER_CONVERSATION = 10
 
 export const CONVERSATION_LIMIT_MESSAGE =
   'This conversation has reached its message limit for this demo. Please start a new chat to continue.'
+
+// See config/env.js aiUsageCaps and services/chatService.js for where these
+// are enforced — kept separate from CONVERSATION_LIMIT_MESSAGE above since
+// each guards a different cap (open conversations / this user's AI usage
+// today / everyone's AI usage today) and benefits from its own wording.
+export const CONVERSATION_COUNT_LIMIT_MESSAGE =
+  "You've reached this demo's limit on open conversations. Delete one to start a new chat."
+
+export const USER_DAILY_AI_LIMIT_MESSAGE =
+  "You've reached today's demo message limit. Please try again tomorrow."
+
+export const GLOBAL_DAILY_AI_LIMIT_MESSAGE = "This demo has reached its daily usage limit. Please try again tomorrow."

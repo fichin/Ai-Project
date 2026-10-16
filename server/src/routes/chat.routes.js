@@ -35,7 +35,7 @@ router.post(
     }
 
     const conversation = await resolveConversation(conversationIdInput, req.user.id)
-    const { userMessage, assistantMessage } = await sendChatMessage(conversation.id, message)
+    const { userMessage, assistantMessage } = await sendChatMessage(conversation.id, message, req.user.id)
     res.json({
       conversationId: conversation.id,
       userMessage: toMessageDto(userMessage),

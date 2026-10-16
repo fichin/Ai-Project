@@ -76,4 +76,17 @@ export const env = {
       max: intEnv('CHAT_RATE_LIMIT_MAX', 20),
     },
   },
+  // Cost caps independent of rate limiting above: rate limits bound how
+  // *fast* a user can hit the API, these bound how *much* real AI-provider
+  // quota the demo spends in total — a user staying well under the rate
+  // limit could still rack up real cost over a day without these. See
+  // services/chatService.js for where they're enforced.
+  aiUsageCaps: {
+    maxConversationsPerUser: intEnv('MAX_CONVERSATIONS_PER_USER', 5),
+    maxAiMessagesPerUserPerDay: intEnv('MAX_AI_MESSAGES_PER_USER_PER_DAY', 30),
+    // Global kill switch across all users combined, in case the per-user
+    // caps above aren't enough to stop a burst of new signups from
+    // exhausting a free-tier provider key in one day.
+    maxAiCallsPerDay: intEnv('MAX_AI_CALLS_PER_DAY', 300),
+  },
 }
