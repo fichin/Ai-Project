@@ -100,3 +100,5 @@ rewrite. The one piece intentionally left on SQLite is the local
 development email outbox (`server/data/dev-outbox.db`) — a throwaway
 convenience for reading back verification/reset links locally, not part
 of the app's real data.
+
+## License: MIT
