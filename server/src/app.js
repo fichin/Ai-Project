@@ -26,7 +26,11 @@ export function createApp() {
   app.set('trust proxy', env.trustProxyHops)
 
   app.use(cors({ origin: env.corsOrigin, credentials: true }))
-  app.use(express.json())
+  // 20kb comfortably covers every real request body this API accepts (the
+  // largest being a chat message, capped at 2000 characters — see
+  // config/limits.js) while still rejecting an oversized payload before it
+  // reaches any route handler.
+  app.use(express.json({ limit: '20kb' }))
 
   app.use('/api', healthRoutes)
   app.use('/api', authRoutes)

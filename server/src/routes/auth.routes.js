@@ -23,6 +23,7 @@ import { verificationEmail, passwordResetEmail } from '../services/mail/template
 import { AVATAR_IDS } from '../config/avatars.js'
 import { logActivity } from '../db/activityRepository.js'
 import { ACTIVITY_TYPES } from '../config/activity.js'
+import { MAX_NAME_LENGTH } from '../config/limits.js'
 import { env } from '../config/env.js'
 import {
   SESSION_COOKIE_NAME,
@@ -83,6 +84,9 @@ router.post(
     }
     if (typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'A non-empty "name" is required.' })
+    }
+    if (name.trim().length > MAX_NAME_LENGTH) {
+      return res.status(400).json({ error: `"name" must be at most ${MAX_NAME_LENGTH} characters.` })
     }
 
     const normalizedEmail = email.trim().toLowerCase()
@@ -171,6 +175,9 @@ router.patch(
     if (name !== undefined) {
       if (typeof name !== 'string' || name.trim().length === 0) {
         return res.status(400).json({ error: '"name" must be a non-empty string.' })
+      }
+      if (name.trim().length > MAX_NAME_LENGTH) {
+        return res.status(400).json({ error: `"name" must be at most ${MAX_NAME_LENGTH} characters.` })
       }
       fields.name = name.trim()
     }

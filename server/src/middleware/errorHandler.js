@@ -7,6 +7,13 @@ export function errorHandler(err, req, res, next) {
     return res.status(400).json({ error: 'Request body must be valid JSON.' })
   }
 
+  // Thrown by express.json()'s body-parser when a request exceeds the
+  // limit set in app.js — give a clear reason instead of falling through
+  // to the generic 500 message below.
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request body is too large.' })
+  }
+
   const knownErrors = [
     'AiProviderError',
     'ConversationNotFoundError',
