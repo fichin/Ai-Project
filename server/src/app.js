@@ -19,6 +19,12 @@ import { requireAuth } from './middleware/requireAuth.js'
 export function createApp() {
   const app = express()
 
+  // See config/env.js: Render puts exactly one proxy in front of this app,
+  // which appends the real client IP as the LAST X-Forwarded-For entry.
+  // This hop count makes req.ip resolve to that entry regardless of what
+  // an attacker prepends to the front of the header.
+  app.set('trust proxy', env.trustProxyHops)
+
   app.use(cors({ origin: env.corsOrigin, credentials: true }))
   app.use(express.json())
 

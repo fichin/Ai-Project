@@ -16,6 +16,7 @@ import { createResetToken, consumeResetToken, deleteResetTokensForUser } from '.
 import { hashPassword, verifyPassword } from '../utils/passwordHash.js'
 import { parseCookies } from '../utils/cookies.js'
 import { requireAuth } from '../middleware/requireAuth.js'
+import { loginLimiter, registerLimiter, forgotPasswordLimiter, resendVerificationLimiter } from '../middleware/rateLimiters.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { sendEmail } from '../services/mail/index.js'
 import { verificationEmail, passwordResetEmail } from '../services/mail/templates.js'
@@ -70,6 +71,7 @@ function isValidEmail(email) {
 
 router.post(
   '/auth/register',
+  registerLimiter,
   asyncHandler(async (req, res) => {
     const { email, password, name } = req.body ?? {}
 
@@ -109,6 +111,7 @@ router.post(
 
 router.post(
   '/auth/login',
+  loginLimiter,
   asyncHandler(async (req, res) => {
     const { email, password } = req.body ?? {}
 
@@ -210,6 +213,7 @@ router.post(
 
 router.post(
   '/auth/resend-verification',
+  resendVerificationLimiter,
   asyncHandler(async (req, res) => {
     const { email } = req.body ?? {}
 
@@ -232,6 +236,7 @@ router.post(
 
 router.post(
   '/auth/forgot-password',
+  forgotPasswordLimiter,
   asyncHandler(async (req, res) => {
     const { email } = req.body ?? {}
 

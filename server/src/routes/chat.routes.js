@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { resolveConversation, sendChatMessage } from '../services/chatService.js'
+import { chatLimiter } from '../middleware/rateLimiters.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 
 const router = Router()
@@ -18,6 +19,7 @@ function toMessageDto(row) {
 
 router.post(
   '/chat',
+  chatLimiter,
   asyncHandler(async (req, res) => {
     const { message, conversationId: conversationIdInput } = req.body ?? {}
 
