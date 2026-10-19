@@ -101,23 +101,24 @@ request path is browser → Vercel (rewrites `/api/*` to Render) → Cloudflare 
 front of Render) → Render's own internal proxy → the app. `TRUST_PROXY_HOPS`
 (see `server/.env.example`) tells Express how many of those hops to trust when
 resolving the real client IP from `X-Forwarded-For`, and production is
-currently configured with `TRUST_PROXY_HOPS=4` on Render to account for that
-full chain (client, Vercel, Cloudflare, Render's internal proxy). This value
-was arrived at empirically while debugging inconsistent rate-limit behavior in
-production (an IP-based limit was observed being both under- and over-counted
-at lower hop counts) rather than confirmed exhaustively against Render's own
-server-side logs — if Render's internal routing or Cloudflare's presence ever
-changes, this number may need revisiting.
+configured with `TRUST_PROXY_HOPS=4` on Render to account for that full chain.
+This was confirmed directly from Render's own logs via temporary debug
+logging: `X-Forwarded-For` consistently carried exactly 4 entries per request
+(the real client, Vercel's egress IP on AWS, a Cloudflare IP in front of
+Render, and a Render-internal `10.x` address), and the process id stayed
+constant across requests, confirming a single backend instance rather than
+several independently-counting ones.
 
-Because of that uncertainty, **the IP-based rate limit is treated as
-best-effort, not as the primary defense.** `loginLimiter`,
+Even so, **the IP-based rate limit is treated as best-effort, not as the
+primary defense** — Vercel's rewrite can let a spoofed `X-Forwarded-For` pass
+through as the first entry of the header on its way to Render, so `req.ip`
+isn't fully trustworthy by construction, hop count aside. `loginLimiter`,
 `forgotPasswordLimiter`, and `resendVerificationLimiter` (all keyed by
 `req.ip`) sit alongside — not instead of — limiters keyed by the normalized
 account email (`loginPerEmailLimiter`, `forgotPasswordPerEmailLimiter`,
 `resendVerificationPerEmailLimiter`, see `server/src/middleware/rateLimiters.js`).
 No amount of IP or `X-Forwarded-For` manipulation can move a request into a
-different email's bucket, so these hold even if the hop count above is ever
-wrong for a given request. The AI usage caps
+different email's bucket, so these hold regardless. The AI usage caps
 (`MAX_CONVERSATIONS_PER_USER`, `MAX_AI_MESSAGES_PER_USER_PER_DAY`,
 `MAX_AI_CALLS_PER_DAY` — see `server/src/config/env.js`) are the real
 backstop against cost abuse specifically: they bound total spend regardless of
