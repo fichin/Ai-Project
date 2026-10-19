@@ -94,6 +94,35 @@ failing tests, or a build that doesn't compile — before it ever reaches
 `main`, let alone the deployed app. See the **Actions** tab on GitHub for
 run history.
 
+## Security
+
+**Rate limiting behind the Vercel → Render proxy chain.** The live deployment's
+request path is browser → Vercel (rewrites `/api/*` to Render) → Cloudflare (in
+front of Render) → Render's own internal proxy → the app. `TRUST_PROXY_HOPS`
+(see `server/.env.example`) tells Express how many of those hops to trust when
+resolving the real client IP from `X-Forwarded-For`, and production is
+currently configured with `TRUST_PROXY_HOPS=4` on Render to account for that
+full chain (client, Vercel, Cloudflare, Render's internal proxy). This value
+was arrived at empirically while debugging inconsistent rate-limit behavior in
+production (an IP-based limit was observed being both under- and over-counted
+at lower hop counts) rather than confirmed exhaustively against Render's own
+server-side logs — if Render's internal routing or Cloudflare's presence ever
+changes, this number may need revisiting.
+
+Because of that uncertainty, **the IP-based rate limit is treated as
+best-effort, not as the primary defense.** `loginLimiter`,
+`forgotPasswordLimiter`, and `resendVerificationLimiter` (all keyed by
+`req.ip`) sit alongside — not instead of — limiters keyed by the normalized
+account email (`loginPerEmailLimiter`, `forgotPasswordPerEmailLimiter`,
+`resendVerificationPerEmailLimiter`, see `server/src/middleware/rateLimiters.js`).
+No amount of IP or `X-Forwarded-For` manipulation can move a request into a
+different email's bucket, so these hold even if the hop count above is ever
+wrong for a given request. The AI usage caps
+(`MAX_CONVERSATIONS_PER_USER`, `MAX_AI_MESSAGES_PER_USER_PER_DAY`,
+`MAX_AI_CALLS_PER_DAY` — see `server/src/config/env.js`) are the real
+backstop against cost abuse specifically: they bound total spend regardless of
+how fast or from how many apparent IPs a user or script hits the API.
+
 ## Architecture note: the Postgres migration
 
 The app originally ran on a single local SQLite file. It was migrated to
