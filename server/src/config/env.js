@@ -59,6 +59,14 @@ export const env = {
       windowMs: minutes(intEnv('LOGIN_RATE_LIMIT_WINDOW_MINUTES', 15)),
       max: intEnv('LOGIN_RATE_LIMIT_MAX', 10),
     },
+    // Keyed by email instead of IP (see middleware/rateLimiters.js) — a
+    // backstop for when req.ip isn't trustworthy (see trustProxyHops
+    // above). skipSuccessfulRequests on this one only: a correct password
+    // shouldn't count against the account's own limit, only wrong ones.
+    loginPerEmail: {
+      windowMs: minutes(intEnv('LOGIN_PER_EMAIL_RATE_LIMIT_WINDOW_MINUTES', 15)),
+      max: intEnv('LOGIN_PER_EMAIL_RATE_LIMIT_MAX', 10),
+    },
     register: {
       windowMs: minutes(intEnv('REGISTER_RATE_LIMIT_WINDOW_MINUTES', 60)),
       max: intEnv('REGISTER_RATE_LIMIT_MAX', 5),
