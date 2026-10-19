@@ -16,7 +16,15 @@ import { createResetToken, consumeResetToken, deleteResetTokensForUser } from '.
 import { hashPassword, verifyPassword } from '../utils/passwordHash.js'
 import { parseCookies } from '../utils/cookies.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-import { loginLimiter, registerLimiter, forgotPasswordLimiter, resendVerificationLimiter } from '../middleware/rateLimiters.js'
+import {
+  loginLimiter,
+  loginPerEmailLimiter,
+  registerLimiter,
+  forgotPasswordLimiter,
+  forgotPasswordPerEmailLimiter,
+  resendVerificationLimiter,
+  resendVerificationPerEmailLimiter,
+} from '../middleware/rateLimiters.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { sendEmail } from '../services/mail/index.js'
 import { verificationEmail, passwordResetEmail } from '../services/mail/templates.js'
@@ -113,28 +121,10 @@ router.post(
   }),
 )
 
-// TEMPORARY - remove after debugging: diagnosing inconsistent rate-limit
-// bucketing behind the Vercel -> Render proxy chain. Only req.ip (what the
-// app resolves as the client), the raw x-forwarded-for header, the raw
-// socket address, and the process id are logged — never the request body,
-// cookies, or any other header.
-function debugClientIp(req, res, next) {
-  console.log(
-    '[debug-client-ip]',
-    JSON.stringify({
-      ip: req.ip,
-      xff: req.headers['x-forwarded-for'],
-      remote: req.socket.remoteAddress,
-      pid: process.pid,
-    }),
-  )
-  next()
-}
-
 router.post(
   '/auth/login',
-  debugClientIp,
   loginLimiter,
+  loginPerEmailLimiter,
   asyncHandler(async (req, res) => {
     const { email, password } = req.body ?? {}
 
@@ -240,6 +230,7 @@ router.post(
 router.post(
   '/auth/resend-verification',
   resendVerificationLimiter,
+  resendVerificationPerEmailLimiter,
   asyncHandler(async (req, res) => {
     const { email } = req.body ?? {}
 
@@ -263,6 +254,7 @@ router.post(
 router.post(
   '/auth/forgot-password',
   forgotPasswordLimiter,
+  forgotPasswordPerEmailLimiter,
   asyncHandler(async (req, res) => {
     const { email } = req.body ?? {}
 

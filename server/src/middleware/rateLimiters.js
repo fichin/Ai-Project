@@ -15,6 +15,17 @@ const sharedOptions = {
   legacyHeaders: false,
 }
 
+// Normalizes the same way register/login already do (trim + lowercase) so
+// the same account always maps to the same bucket. Returns null when there
+// is no usable email to key on, which every per-email limiter below treats
+// as "skip me" — falling back to whatever IP-based limiter is mounted
+// alongside it, rather than crashing or applying a limit keyed on
+// something meaningless like the literal string "undefined".
+function normalizedEmailOrNull(req) {
+  const email = req.body?.email
+  return typeof email === 'string' && email.trim().length > 0 ? email.trim().toLowerCase() : null
+}
+
 // Keyed by req.ip (the default), which is only trustworthy because
 // app.js sets "trust proxy" to env.trustProxyHops — see that file and
 // config/env.js for why a spoofed X-Forwarded-For can't move a request
@@ -24,6 +35,34 @@ export const loginLimiter = rateLimit({
   windowMs: env.rateLimits.login.windowMs,
   max: env.rateLimits.login.max,
   handler: jsonRateLimitHandler('Too many login attempts. Please wait a while before trying again.'),
+})
+
+// Backstop for the IP-based loginLimiter above: behind the Vercel ->
+// Render proxy chain, req.ip has been observed resolving inconsistently
+// (see the now-removed debugClientIp investigation), which can let a
+// distributed/spoofed attack dodge the IP bucket. This counts failed
+// attempts against the targeted *account* instead, which no amount of IP
+// or X-Forwarded-For manipulation can move into a different bucket —
+// only knowing a different email can. skipSuccessfulRequests means a
+// correct password never counts against the account's own limit, only
+// wrong ones (matching what "10 failed attempts" should mean). Skipped
+// entirely (falls back to loginLimiter alone) when the request has no
+// usable email to key on, or when it's the public demo account (see
+// env.demoEmail) — that account's credentials are intentionally public on
+// the login page, so this is the one email a stranger repeatedly getting
+// the password "wrong" on purpose could otherwise lock out for real demo
+// users. The IP-based loginLimiter above still applies to it regardless.
+export const loginPerEmailLimiter = rateLimit({
+  ...sharedOptions,
+  windowMs: env.rateLimits.loginPerEmail.windowMs,
+  max: env.rateLimits.loginPerEmail.max,
+  skipSuccessfulRequests: true,
+  skip: (req) => {
+    const email = normalizedEmailOrNull(req)
+    return email === null || email === env.demoEmail
+  },
+  keyGenerator: (req) => normalizedEmailOrNull(req),
+  handler: jsonRateLimitHandler('Too many failed login attempts for this account. Please wait a while before trying again.'),
 })
 
 export const registerLimiter = rateLimit({
@@ -40,11 +79,36 @@ export const forgotPasswordLimiter = rateLimit({
   handler: jsonRateLimitHandler('Too many password reset requests. Please try again later.'),
 })
 
+// Backstop for forgotPasswordLimiter: without this, a single victim email
+// could still be flooded with reset emails by spreading requests across
+// many IPs. No skipSuccessfulRequests here — unlike login there's no
+// "wrong password" outcome to exclude; every valid-shaped request should
+// count, successful-looking or not (see the generic response in
+// auth.routes.js, which doesn't even reveal whether the account exists).
+export const forgotPasswordPerEmailLimiter = rateLimit({
+  ...sharedOptions,
+  windowMs: env.rateLimits.forgotPasswordPerEmail.windowMs,
+  max: env.rateLimits.forgotPasswordPerEmail.max,
+  skip: (req) => normalizedEmailOrNull(req) === null,
+  keyGenerator: (req) => normalizedEmailOrNull(req),
+  handler: jsonRateLimitHandler('Too many password reset requests for this account. Please try again later.'),
+})
+
 export const resendVerificationLimiter = rateLimit({
   ...sharedOptions,
   windowMs: env.rateLimits.resendVerification.windowMs,
   max: env.rateLimits.resendVerification.max,
   handler: jsonRateLimitHandler('Too many verification emails requested. Please try again later.'),
+})
+
+// Same rationale as forgotPasswordPerEmailLimiter above.
+export const resendVerificationPerEmailLimiter = rateLimit({
+  ...sharedOptions,
+  windowMs: env.rateLimits.resendVerificationPerEmail.windowMs,
+  max: env.rateLimits.resendVerificationPerEmail.max,
+  skip: (req) => normalizedEmailOrNull(req) === null,
+  keyGenerator: (req) => normalizedEmailOrNull(req),
+  handler: jsonRateLimitHandler('Too many verification emails requested for this account. Please try again later.'),
 })
 
 // Chat abuse is a per-account cost problem, not a per-IP one (a logged-in

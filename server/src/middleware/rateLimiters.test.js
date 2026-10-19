@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import http from 'node:http'
 import express from 'express'
 import { env } from '../config/env.js'
-import { loginLimiter } from './rateLimiters.js'
+import { loginLimiter, loginPerEmailLimiter } from './rateLimiters.js'
 
 // Mirrors how app.js wires this up in production: exactly one trusted
 // proxy hop, so req.ip resolves to the LAST X-Forwarded-For entry (the one
@@ -34,6 +34,47 @@ function get(port, xForwardedFor) {
 
 async function closeServer(server) {
   await new Promise((resolve) => server.close(resolve))
+}
+
+// No trust-proxy setup needed here — this limiter is keyed by the email in
+// the request body, not req.ip, which is exactly the point: it shouldn't
+// matter what IP (real or spoofed) a request claims to come from. Responds
+// 401, not 200: skipSuccessfulRequests only excludes successful responses
+// from the count, so the test has to mimic a real failed-login response to
+// actually exercise "10 failed attempts" rather than silently never
+// counting anything.
+function startPerEmailTestApp() {
+  const app = express()
+  app.use(express.json())
+  app.post('/probe', loginPerEmailLimiter, (req, res) => res.status(401).json({ email: req.body.email }))
+  const server = app.listen(0)
+  return server
+}
+
+function post(port, body, xForwardedFor) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body)
+    const req = http.request(
+      {
+        port,
+        path: '/probe',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(data),
+          ...(xForwardedFor ? { 'X-Forwarded-For': xForwardedFor } : {}),
+        },
+      },
+      (res) => {
+        let resBody = ''
+        res.on('data', (chunk) => (resBody += chunk))
+        res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(resBody) }))
+      },
+    )
+    req.on('error', reject)
+    req.write(data)
+    req.end()
+  })
 }
 
 describe('rate limiting is keyed by the trusted (last) X-Forwarded-For hop', () => {
@@ -78,6 +119,97 @@ describe('rate limiting is keyed by the trusted (last) X-Forwarded-For hop', () 
 
       const stillOk = await get(port, `9.9.9.9, ${anotherRealClientIp}`)
       assert.equal(stillOk.status, 429, 'this client should now be limited on its own bucket')
+    } finally {
+      await closeServer(server)
+    }
+  })
+})
+
+describe('per-email rate limiting does not depend on the client IP', () => {
+  test('the same email hits 429 after the limit, even from a different simulated IP each time', async () => {
+    const server = startPerEmailTestApp()
+    try {
+      const port = server.address().port
+      const email = 'victim@example.com'
+      const max = env.rateLimits.loginPerEmail.max
+
+      for (let i = 0; i < max; i++) {
+        const simulatedIp = `203.0.113.${i + 1}`
+        const response = await post(port, { email, password: 'wrong' }, simulatedIp)
+        assert.equal(response.status, 401, `attempt ${i + 1} should still be a normal failed-login response`)
+      }
+
+      // A brand-new simulated IP, never used above, must not grant a fresh
+      // bucket — only the email matters for this limiter.
+      const oneMore = await post(port, { email, password: 'wrong' }, '198.51.100.250')
+      assert.equal(oneMore.status, 429, 'exceeding the per-email limit must 429 regardless of the request IP')
+      assert.equal(
+        oneMore.body.error,
+        'Too many failed login attempts for this account. Please wait a while before trying again.',
+      )
+    } finally {
+      await closeServer(server)
+    }
+  })
+
+  test('a different email is unaffected by another email already being rate-limited', async () => {
+    const server = startPerEmailTestApp()
+    try {
+      const port = server.address().port
+      const targetedEmail = 'targeted@example.com'
+      const otherEmail = 'other@example.com'
+      const max = env.rateLimits.loginPerEmail.max
+
+      for (let i = 0; i < max; i++) {
+        const response = await post(port, { email: targetedEmail, password: 'wrong' }, `203.0.113.${i + 1}`)
+        assert.equal(response.status, 401)
+      }
+      const targetedIsBlocked = await post(port, { email: targetedEmail, password: 'wrong' }, '203.0.113.250')
+      assert.equal(targetedIsBlocked.status, 429, 'the targeted email should now be rate-limited')
+
+      // Same (already-used) IP, but a different email — must get its own,
+      // unaffected bucket.
+      const otherStillOk = await post(port, { email: otherEmail, password: 'wrong' }, '203.0.113.1')
+      assert.equal(otherStillOk.status, 401, "a different email must not be affected by another email's limit")
+    } finally {
+      await closeServer(server)
+    }
+  })
+})
+
+describe('the public demo account is exempt from the per-email login limit', () => {
+  test('more than the max failed attempts for the demo email never hit 429, while a normal email still does', async () => {
+    const server = startPerEmailTestApp()
+    try {
+      const port = server.address().port
+      const max = env.rateLimits.loginPerEmail.max
+
+      // Well past the limit — the IP-based loginLimiter (mounted
+      // separately in auth.routes.js) still applies to the demo account;
+      // this limiter specifically must never block it.
+      for (let i = 0; i < max + 5; i++) {
+        const response = await post(port, { email: env.demoEmail, password: 'wrong' }, `203.0.113.${i + 1}`)
+        assert.equal(response.status, 401, `demo-email attempt ${i + 1} should never be rate-limited`)
+      }
+
+      // The exemption compares case-insensitively, same as every other
+      // email normalization in this app.
+      const mixedCase = await post(
+        port,
+        { email: `  ${env.demoEmail.toUpperCase()}  `, password: 'wrong' },
+        '203.0.113.250',
+      )
+      assert.equal(mixedCase.status, 401, 'the exemption must match regardless of case or surrounding whitespace')
+
+      // A normal email, from the exact same simulated IPs, must still be
+      // rate-limited as usual.
+      const normalEmail = 'not-the-demo-account@example.com'
+      for (let i = 0; i < max; i++) {
+        const response = await post(port, { email: normalEmail, password: 'wrong' }, `203.0.113.${i + 1}`)
+        assert.equal(response.status, 401)
+      }
+      const normalIsBlocked = await post(port, { email: normalEmail, password: 'wrong' }, '203.0.113.250')
+      assert.equal(normalIsBlocked.status, 429, 'a normal email must still be rate-limited')
     } finally {
       await closeServer(server)
     }

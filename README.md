@@ -94,6 +94,36 @@ failing tests, or a build that doesn't compile — before it ever reaches
 `main`, let alone the deployed app. See the **Actions** tab on GitHub for
 run history.
 
+## Security
+
+**Rate limiting behind the Vercel → Render proxy chain.** The live deployment's
+request path is browser → Vercel (rewrites `/api/*` to Render) → Cloudflare (in
+front of Render) → Render's own internal proxy → the app. `TRUST_PROXY_HOPS`
+(see `server/.env.example`) tells Express how many of those hops to trust when
+resolving the real client IP from `X-Forwarded-For`, and production is
+configured with `TRUST_PROXY_HOPS=4` on Render to account for that full chain.
+This was confirmed directly from Render's own logs via temporary debug
+logging: `X-Forwarded-For` consistently carried exactly 4 entries per request
+(the real client, Vercel's egress IP on AWS, a Cloudflare IP in front of
+Render, and a Render-internal `10.x` address), and the process id stayed
+constant across requests, confirming a single backend instance rather than
+several independently-counting ones.
+
+Even so, **the IP-based rate limit is treated as best-effort, not as the
+primary defense** — Vercel's rewrite can let a spoofed `X-Forwarded-For` pass
+through as the first entry of the header on its way to Render, so `req.ip`
+isn't fully trustworthy by construction, hop count aside. `loginLimiter`,
+`forgotPasswordLimiter`, and `resendVerificationLimiter` (all keyed by
+`req.ip`) sit alongside — not instead of — limiters keyed by the normalized
+account email (`loginPerEmailLimiter`, `forgotPasswordPerEmailLimiter`,
+`resendVerificationPerEmailLimiter`, see `server/src/middleware/rateLimiters.js`).
+No amount of IP or `X-Forwarded-For` manipulation can move a request into a
+different email's bucket, so these hold regardless. The AI usage caps
+(`MAX_CONVERSATIONS_PER_USER`, `MAX_AI_MESSAGES_PER_USER_PER_DAY`,
+`MAX_AI_CALLS_PER_DAY` — see `server/src/config/env.js`) are the real
+backstop against cost abuse specifically: they bound total spend regardless of
+how fast or from how many apparent IPs a user or script hits the API.
+
 ## Architecture note: the Postgres migration
 
 The app originally ran on a single local SQLite file. It was migrated to

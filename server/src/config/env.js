@@ -51,6 +51,13 @@ export const env = {
   // Local SQLite file for the dev-only email outbox ONLY (see
   // db/devOutboxDb.js) — not the app's database, which is Postgres above.
   devOutboxDbPath: process.env.DATABASE_PATH || defaultDevOutboxDbPath,
+  // The public demo account's email (its password is intentionally public
+  // on the login page too) — see middleware/rateLimiters.js, which exempts
+  // this one address from loginPerEmailLimiter so a stranger spamming
+  // wrong passwords at it can't lock out real demo users. Pre-normalized
+  // (trim + lowercase) so it compares directly against the same
+  // normalization the limiter applies to every request's email.
+  demoEmail: (process.env.DEMO_EMAIL || 'demo@example.com').trim().toLowerCase(),
   // Per-route rate limits (see middleware/rateLimiters.js). All
   // env-configurable so limits can be tuned in production without a code
   // change; defaults match this app's actual traffic shape as a demo.
@@ -58,6 +65,14 @@ export const env = {
     login: {
       windowMs: minutes(intEnv('LOGIN_RATE_LIMIT_WINDOW_MINUTES', 15)),
       max: intEnv('LOGIN_RATE_LIMIT_MAX', 10),
+    },
+    // Keyed by email instead of IP (see middleware/rateLimiters.js) — a
+    // backstop for when req.ip isn't trustworthy (see trustProxyHops
+    // above). skipSuccessfulRequests on this one only: a correct password
+    // shouldn't count against the account's own limit, only wrong ones.
+    loginPerEmail: {
+      windowMs: minutes(intEnv('LOGIN_PER_EMAIL_RATE_LIMIT_WINDOW_MINUTES', 15)),
+      max: intEnv('LOGIN_PER_EMAIL_RATE_LIMIT_MAX', 10),
     },
     register: {
       windowMs: minutes(intEnv('REGISTER_RATE_LIMIT_WINDOW_MINUTES', 60)),
@@ -67,9 +82,21 @@ export const env = {
       windowMs: minutes(intEnv('FORGOT_PASSWORD_RATE_LIMIT_WINDOW_MINUTES', 60)),
       max: intEnv('FORGOT_PASSWORD_RATE_LIMIT_MAX', 3),
     },
+    // Keyed by the target email instead of IP, in addition to the IP limit
+    // above — otherwise a single victim email could still be flooded with
+    // reset emails from many different IPs.
+    forgotPasswordPerEmail: {
+      windowMs: minutes(intEnv('FORGOT_PASSWORD_PER_EMAIL_RATE_LIMIT_WINDOW_MINUTES', 60)),
+      max: intEnv('FORGOT_PASSWORD_PER_EMAIL_RATE_LIMIT_MAX', 3),
+    },
     resendVerification: {
       windowMs: minutes(intEnv('RESEND_VERIFICATION_RATE_LIMIT_WINDOW_MINUTES', 60)),
       max: intEnv('RESEND_VERIFICATION_RATE_LIMIT_MAX', 3),
+    },
+    // Same rationale as forgotPasswordPerEmail above.
+    resendVerificationPerEmail: {
+      windowMs: minutes(intEnv('RESEND_VERIFICATION_PER_EMAIL_RATE_LIMIT_WINDOW_MINUTES', 60)),
+      max: intEnv('RESEND_VERIFICATION_PER_EMAIL_RATE_LIMIT_MAX', 3),
     },
     chat: {
       windowMs: minutes(intEnv('CHAT_RATE_LIMIT_WINDOW_MINUTES', 1)),
