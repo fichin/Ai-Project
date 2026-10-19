@@ -10,6 +10,15 @@ demonstration of a production-shaped React + Express + Postgres app.
 **Live demo:** [ai-project-phi-sand.vercel.app](https://ai-project-phi-sand.vercel.app)
 Demo login: `demo@example.com` / `Demo1234!` (pre-verified, no signup needed)
 
+> Both the frontend and backend are on free-tier hosting, so the first
+> load after a period of inactivity can take 30-50 seconds while the
+> backend spins back up — subsequent requests are fast.
+>
+> The live demo has usage limits (conversations, AI messages, and a
+> shared daily cap) to keep it running sustainably on a free-tier AI
+> provider key; a message appears in the chat once the demo account hits
+> its daily limit.
+
 ## Tech stack
 
 - **Frontend:** React 19, Vite, React Router, TanStack Query
@@ -100,3 +109,5 @@ rewrite. The one piece intentionally left on SQLite is the local
 development email outbox (`server/data/dev-outbox.db`) — a throwaway
 convenience for reading back verification/reset links locally, not part
 of the app's real data.
+
+## License: MIT

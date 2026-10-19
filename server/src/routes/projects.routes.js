@@ -12,6 +12,7 @@ import { logActivity } from '../db/activityRepository.js'
 import { ACTIVITY_TYPES } from '../config/activity.js'
 import { createNotification } from '../db/notificationsRepository.js'
 import { NOTIFICATION_TYPES } from '../config/notifications.js'
+import { MAX_NAME_LENGTH, MAX_DESCRIPTION_LENGTH } from '../config/limits.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 
 const router = Router()
@@ -70,8 +71,14 @@ router.post(
     if (typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'A non-empty "name" field is required.' })
     }
+    if (name.trim().length > MAX_NAME_LENGTH) {
+      return res.status(400).json({ error: `"name" must be at most ${MAX_NAME_LENGTH} characters.` })
+    }
     if (description !== undefined && typeof description !== 'string') {
       return res.status(400).json({ error: '"description" must be a string.' })
+    }
+    if (description !== undefined && description.length > MAX_DESCRIPTION_LENGTH) {
+      return res.status(400).json({ error: `"description" must be at most ${MAX_DESCRIPTION_LENGTH} characters.` })
     }
     if (status !== undefined && !ALLOWED_STATUSES.includes(status)) {
       return res.status(400).json({ error: `"status" must be one of: ${ALLOWED_STATUSES.join(', ')}.` })
@@ -110,12 +117,18 @@ router.patch(
       if (typeof name !== 'string' || name.trim().length === 0) {
         return res.status(400).json({ error: '"name" must be a non-empty string.' })
       }
+      if (name.trim().length > MAX_NAME_LENGTH) {
+        return res.status(400).json({ error: `"name" must be at most ${MAX_NAME_LENGTH} characters.` })
+      }
       fields.name = name.trim()
     }
 
     if (description !== undefined) {
       if (typeof description !== 'string') {
         return res.status(400).json({ error: '"description" must be a string.' })
+      }
+      if (description.length > MAX_DESCRIPTION_LENGTH) {
+        return res.status(400).json({ error: `"description" must be at most ${MAX_DESCRIPTION_LENGTH} characters.` })
       }
       fields.description = description
     }

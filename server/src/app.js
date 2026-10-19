@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import { env } from './config/env.js'
 import healthRoutes from './routes/health.routes.js'
 import authRoutes from './routes/auth.routes.js'
@@ -19,8 +20,24 @@ import { requireAuth } from './middleware/requireAuth.js'
 export function createApp() {
   const app = express()
 
+  // See config/env.js: Render puts exactly one proxy in front of this app,
+  // which appends the real client IP as the LAST X-Forwarded-For entry.
+  // This hop count makes req.ip resolve to that entry regardless of what
+  // an attacker prepends to the front of the header.
+  app.set('trust proxy', env.trustProxyHops)
+
+  // Helmet's defaults (HSTS, X-Content-Type-Options, X-Frame-Options,
+  // a restrictive CSP, etc.) are written for apps that serve their own
+  // HTML; this is a pure JSON API with no templates or inline scripts of
+  // its own to carve exceptions for, so the defaults apply cleanly as-is.
+  app.use(helmet())
+
   app.use(cors({ origin: env.corsOrigin, credentials: true }))
-  app.use(express.json())
+  // 20kb comfortably covers every real request body this API accepts (the
+  // largest being a chat message, capped at 2000 characters — see
+  // config/limits.js) while still rejecting an oversized payload before it
+  // reaches any route handler.
+  app.use(express.json({ limit: '20kb' }))
 
   app.use('/api', healthRoutes)
   app.use('/api', authRoutes)

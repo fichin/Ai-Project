@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { resolveConversation, sendChatMessage } from '../services/chatService.js'
+import { chatLimiter } from '../middleware/rateLimiters.js'
+import { MAX_CHAT_MESSAGE_LENGTH } from '../config/limits.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 
 const router = Router()
@@ -18,11 +20,15 @@ function toMessageDto(row) {
 
 router.post(
   '/chat',
+  chatLimiter,
   asyncHandler(async (req, res) => {
     const { message, conversationId: conversationIdInput } = req.body ?? {}
 
     if (typeof message !== 'string' || message.trim().length === 0) {
       return res.status(400).json({ error: 'A non-empty "message" field is required.' })
+    }
+    if (message.length > MAX_CHAT_MESSAGE_LENGTH) {
+      return res.status(400).json({ error: `"message" must be at most ${MAX_CHAT_MESSAGE_LENGTH} characters.` })
     }
 
     if (conversationIdInput !== undefined && conversationIdInput !== null) {
@@ -33,7 +39,7 @@ router.post(
     }
 
     const conversation = await resolveConversation(conversationIdInput, req.user.id)
-    const { userMessage, assistantMessage } = await sendChatMessage(conversation.id, message)
+    const { userMessage, assistantMessage } = await sendChatMessage(conversation.id, message, req.user.id)
     res.json({
       conversationId: conversation.id,
       userMessage: toMessageDto(userMessage),

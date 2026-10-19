@@ -16,6 +16,15 @@ export async function listConversationsByUser(userId) {
   return rows
 }
 
+// Used to enforce MAX_CONVERSATIONS_PER_USER (see config/env.js
+// aiUsageCaps) before creating a new conversation.
+export async function countConversationsByUser(userId) {
+  const { rows } = await getPostgresPool().query('SELECT COUNT(*)::int AS count FROM conversations WHERE user_id = $1', [
+    userId,
+  ])
+  return rows[0].count
+}
+
 export async function getConversationByIdForUser(id, userId) {
   const { rows } = await getPostgresPool().query('SELECT * FROM conversations WHERE id = $1 AND user_id = $2', [
     id,

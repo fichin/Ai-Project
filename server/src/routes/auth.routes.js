@@ -16,12 +16,14 @@ import { createResetToken, consumeResetToken, deleteResetTokensForUser } from '.
 import { hashPassword, verifyPassword } from '../utils/passwordHash.js'
 import { parseCookies } from '../utils/cookies.js'
 import { requireAuth } from '../middleware/requireAuth.js'
+import { loginLimiter, registerLimiter, forgotPasswordLimiter, resendVerificationLimiter } from '../middleware/rateLimiters.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { sendEmail } from '../services/mail/index.js'
 import { verificationEmail, passwordResetEmail } from '../services/mail/templates.js'
 import { AVATAR_IDS } from '../config/avatars.js'
 import { logActivity } from '../db/activityRepository.js'
 import { ACTIVITY_TYPES } from '../config/activity.js'
+import { MAX_NAME_LENGTH } from '../config/limits.js'
 import { env } from '../config/env.js'
 import {
   SESSION_COOKIE_NAME,
@@ -70,6 +72,7 @@ function isValidEmail(email) {
 
 router.post(
   '/auth/register',
+  registerLimiter,
   asyncHandler(async (req, res) => {
     const { email, password, name } = req.body ?? {}
 
@@ -81,6 +84,9 @@ router.post(
     }
     if (typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'A non-empty "name" is required.' })
+    }
+    if (name.trim().length > MAX_NAME_LENGTH) {
+      return res.status(400).json({ error: `"name" must be at most ${MAX_NAME_LENGTH} characters.` })
     }
 
     const normalizedEmail = email.trim().toLowerCase()
@@ -109,6 +115,7 @@ router.post(
 
 router.post(
   '/auth/login',
+  loginLimiter,
   asyncHandler(async (req, res) => {
     const { email, password } = req.body ?? {}
 
@@ -169,6 +176,9 @@ router.patch(
       if (typeof name !== 'string' || name.trim().length === 0) {
         return res.status(400).json({ error: '"name" must be a non-empty string.' })
       }
+      if (name.trim().length > MAX_NAME_LENGTH) {
+        return res.status(400).json({ error: `"name" must be at most ${MAX_NAME_LENGTH} characters.` })
+      }
       fields.name = name.trim()
     }
 
@@ -210,6 +220,7 @@ router.post(
 
 router.post(
   '/auth/resend-verification',
+  resendVerificationLimiter,
   asyncHandler(async (req, res) => {
     const { email } = req.body ?? {}
 
@@ -232,6 +243,7 @@ router.post(
 
 router.post(
   '/auth/forgot-password',
+  forgotPasswordLimiter,
   asyncHandler(async (req, res) => {
     const { email } = req.body ?? {}
 
