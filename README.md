@@ -94,6 +94,10 @@ failing tests, or a build that doesn't compile — before it ever reaches
 `main`, let alone the deployed app. See the **Actions** tab on GitHub for
 run history.
 
+A separate scheduled workflow (`.github/workflows/keepalive.yml`) pings the
+live deployment's `GET /api/health/db` every 3 days so the free Supabase
+project backing it doesn't auto-pause itself from inactivity.
+
 ## Security
 
 **Rate limiting behind the Vercel → Render proxy chain.** The live deployment's
