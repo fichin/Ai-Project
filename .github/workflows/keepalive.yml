@@ -1,0 +1,41 @@
+name: Keepalive
+
+# The free Supabase project this app's database runs on pauses itself
+# after about a week with no activity, which breaks login on the live
+# demo until someone notices and wakes it back up. Pinging GET
+# /api/health/db (see server/src/routes/health.routes.js) — the one
+# endpoint that actually touches Postgres — often enough keeps that from
+# happening. Every 3 days is comfortably inside Supabase's ~7-day pause
+# window with margin to spare; workflow_dispatch is there to trigger a
+# manual ping on demand (e.g. right after deploying).
+on:
+  schedule:
+    - cron: '0 9 */3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping-health-db:
+    name: Ping /api/health/db
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # No checkout needed — this job doesn't touch any repo file, it
+      # just makes one HTTP request to the already-deployed site.
+      #
+      # --max-time 90 and --retry 3 (with --retry-all-errors, so a 503
+      # counts as retryable too) give Render's free-tier dyno room to
+      # cold-start if it had also spun down — a single quick request
+      # failing immediately would defeat the point of this workflow.
+      # --fail makes curl exit non-zero on anything but a 2xx, which is
+      # what actually fails this job if /api/health/db never returns 200.
+      - name: Curl the live health/db endpoint
+        run: |
+          curl --fail --silent --show-error \
+            --max-time 90 \
+            --retry 3 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            https://ai-project-phi-sand.vercel.app/api/health/db
