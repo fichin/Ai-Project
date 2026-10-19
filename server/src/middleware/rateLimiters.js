@@ -72,11 +72,36 @@ export const forgotPasswordLimiter = rateLimit({
   handler: jsonRateLimitHandler('Too many password reset requests. Please try again later.'),
 })
 
+// Backstop for forgotPasswordLimiter: without this, a single victim email
+// could still be flooded with reset emails by spreading requests across
+// many IPs. No skipSuccessfulRequests here — unlike login there's no
+// "wrong password" outcome to exclude; every valid-shaped request should
+// count, successful-looking or not (see the generic response in
+// auth.routes.js, which doesn't even reveal whether the account exists).
+export const forgotPasswordPerEmailLimiter = rateLimit({
+  ...sharedOptions,
+  windowMs: env.rateLimits.forgotPasswordPerEmail.windowMs,
+  max: env.rateLimits.forgotPasswordPerEmail.max,
+  skip: (req) => normalizedEmailOrNull(req) === null,
+  keyGenerator: (req) => normalizedEmailOrNull(req),
+  handler: jsonRateLimitHandler('Too many password reset requests for this account. Please try again later.'),
+})
+
 export const resendVerificationLimiter = rateLimit({
   ...sharedOptions,
   windowMs: env.rateLimits.resendVerification.windowMs,
   max: env.rateLimits.resendVerification.max,
   handler: jsonRateLimitHandler('Too many verification emails requested. Please try again later.'),
+})
+
+// Same rationale as forgotPasswordPerEmailLimiter above.
+export const resendVerificationPerEmailLimiter = rateLimit({
+  ...sharedOptions,
+  windowMs: env.rateLimits.resendVerificationPerEmail.windowMs,
+  max: env.rateLimits.resendVerificationPerEmail.max,
+  skip: (req) => normalizedEmailOrNull(req) === null,
+  keyGenerator: (req) => normalizedEmailOrNull(req),
+  handler: jsonRateLimitHandler('Too many verification emails requested for this account. Please try again later.'),
 })
 
 // Chat abuse is a per-account cost problem, not a per-IP one (a logged-in

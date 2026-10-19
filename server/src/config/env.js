@@ -75,9 +75,21 @@ export const env = {
       windowMs: minutes(intEnv('FORGOT_PASSWORD_RATE_LIMIT_WINDOW_MINUTES', 60)),
       max: intEnv('FORGOT_PASSWORD_RATE_LIMIT_MAX', 3),
     },
+    // Keyed by the target email instead of IP, in addition to the IP limit
+    // above — otherwise a single victim email could still be flooded with
+    // reset emails from many different IPs.
+    forgotPasswordPerEmail: {
+      windowMs: minutes(intEnv('FORGOT_PASSWORD_PER_EMAIL_RATE_LIMIT_WINDOW_MINUTES', 60)),
+      max: intEnv('FORGOT_PASSWORD_PER_EMAIL_RATE_LIMIT_MAX', 3),
+    },
     resendVerification: {
       windowMs: minutes(intEnv('RESEND_VERIFICATION_RATE_LIMIT_WINDOW_MINUTES', 60)),
       max: intEnv('RESEND_VERIFICATION_RATE_LIMIT_MAX', 3),
+    },
+    // Same rationale as forgotPasswordPerEmail above.
+    resendVerificationPerEmail: {
+      windowMs: minutes(intEnv('RESEND_VERIFICATION_PER_EMAIL_RATE_LIMIT_WINDOW_MINUTES', 60)),
+      max: intEnv('RESEND_VERIFICATION_PER_EMAIL_RATE_LIMIT_MAX', 3),
     },
     chat: {
       windowMs: minutes(intEnv('CHAT_RATE_LIMIT_WINDOW_MINUTES', 1)),

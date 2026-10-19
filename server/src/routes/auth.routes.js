@@ -21,7 +21,9 @@ import {
   loginPerEmailLimiter,
   registerLimiter,
   forgotPasswordLimiter,
+  forgotPasswordPerEmailLimiter,
   resendVerificationLimiter,
+  resendVerificationPerEmailLimiter,
 } from '../middleware/rateLimiters.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { sendEmail } from '../services/mail/index.js'
@@ -228,6 +230,7 @@ router.post(
 router.post(
   '/auth/resend-verification',
   resendVerificationLimiter,
+  resendVerificationPerEmailLimiter,
   asyncHandler(async (req, res) => {
     const { email } = req.body ?? {}
 
@@ -251,6 +254,7 @@ router.post(
 router.post(
   '/auth/forgot-password',
   forgotPasswordLimiter,
+  forgotPasswordPerEmailLimiter,
   asyncHandler(async (req, res) => {
     const { email } = req.body ?? {}
 
