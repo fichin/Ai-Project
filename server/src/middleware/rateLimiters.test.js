@@ -176,3 +176,42 @@ describe('per-email rate limiting does not depend on the client IP', () => {
     }
   })
 })
+
+describe('the public demo account is exempt from the per-email login limit', () => {
+  test('more than the max failed attempts for the demo email never hit 429, while a normal email still does', async () => {
+    const server = startPerEmailTestApp()
+    try {
+      const port = server.address().port
+      const max = env.rateLimits.loginPerEmail.max
+
+      // Well past the limit — the IP-based loginLimiter (mounted
+      // separately in auth.routes.js) still applies to the demo account;
+      // this limiter specifically must never block it.
+      for (let i = 0; i < max + 5; i++) {
+        const response = await post(port, { email: env.demoEmail, password: 'wrong' }, `203.0.113.${i + 1}`)
+        assert.equal(response.status, 401, `demo-email attempt ${i + 1} should never be rate-limited`)
+      }
+
+      // The exemption compares case-insensitively, same as every other
+      // email normalization in this app.
+      const mixedCase = await post(
+        port,
+        { email: `  ${env.demoEmail.toUpperCase()}  `, password: 'wrong' },
+        '203.0.113.250',
+      )
+      assert.equal(mixedCase.status, 401, 'the exemption must match regardless of case or surrounding whitespace')
+
+      // A normal email, from the exact same simulated IPs, must still be
+      // rate-limited as usual.
+      const normalEmail = 'not-the-demo-account@example.com'
+      for (let i = 0; i < max; i++) {
+        const response = await post(port, { email: normalEmail, password: 'wrong' }, `203.0.113.${i + 1}`)
+        assert.equal(response.status, 401)
+      }
+      const normalIsBlocked = await post(port, { email: normalEmail, password: 'wrong' }, '203.0.113.250')
+      assert.equal(normalIsBlocked.status, 429, 'a normal email must still be rate-limited')
+    } finally {
+      await closeServer(server)
+    }
+  })
+})

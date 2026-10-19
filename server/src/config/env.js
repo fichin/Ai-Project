@@ -51,6 +51,13 @@ export const env = {
   // Local SQLite file for the dev-only email outbox ONLY (see
   // db/devOutboxDb.js) — not the app's database, which is Postgres above.
   devOutboxDbPath: process.env.DATABASE_PATH || defaultDevOutboxDbPath,
+  // The public demo account's email (its password is intentionally public
+  // on the login page too) — see middleware/rateLimiters.js, which exempts
+  // this one address from loginPerEmailLimiter so a stranger spamming
+  // wrong passwords at it can't lock out real demo users. Pre-normalized
+  // (trim + lowercase) so it compares directly against the same
+  // normalization the limiter applies to every request's email.
+  demoEmail: (process.env.DEMO_EMAIL || 'demo@example.com').trim().toLowerCase(),
   // Per-route rate limits (see middleware/rateLimiters.js). All
   // env-configurable so limits can be tuned in production without a code
   // change; defaults match this app's actual traffic shape as a demo.

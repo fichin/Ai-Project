@@ -47,13 +47,20 @@ export const loginLimiter = rateLimit({
 // correct password never counts against the account's own limit, only
 // wrong ones (matching what "10 failed attempts" should mean). Skipped
 // entirely (falls back to loginLimiter alone) when the request has no
-// usable email to key on.
+// usable email to key on, or when it's the public demo account (see
+// env.demoEmail) — that account's credentials are intentionally public on
+// the login page, so this is the one email a stranger repeatedly getting
+// the password "wrong" on purpose could otherwise lock out for real demo
+// users. The IP-based loginLimiter above still applies to it regardless.
 export const loginPerEmailLimiter = rateLimit({
   ...sharedOptions,
   windowMs: env.rateLimits.loginPerEmail.windowMs,
   max: env.rateLimits.loginPerEmail.max,
   skipSuccessfulRequests: true,
-  skip: (req) => normalizedEmailOrNull(req) === null,
+  skip: (req) => {
+    const email = normalizedEmailOrNull(req)
+    return email === null || email === env.demoEmail
+  },
   keyGenerator: (req) => normalizedEmailOrNull(req),
   handler: jsonRateLimitHandler('Too many failed login attempts for this account. Please wait a while before trying again.'),
 })
