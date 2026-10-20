@@ -62,17 +62,19 @@ npm install
 npm run dev           # http://localhost:4000
 ```
 
-**Environment variables** — copy `server/.env.example` to `server/.env` and fill in:
+**Environment variables** — copy `server/.env.example` to `server/.env` and
+fill in. See that file, which documents every variable inline; the
+essentials:
 
-| Variable | Required | Notes |
-|---|---|---|
-| `DATABASE_URL` | Yes | Postgres/Supabase connection string |
-| `CORS_ORIGIN` | No | Defaults to `http://localhost:5173` |
-| `FRONTEND_URL` | No | Defaults to `http://localhost:5173`; set to the deployed frontend URL in production so email links point to the right place |
-| `ANTHROPIC_API_KEY` | No | Falls back to Groq, then a mock provider, when unset |
-| `GROQ_API_KEY` / `GROQ_MODEL` | No | Free-tier fallback used only when `ANTHROPIC_API_KEY` is unset |
-| `RESEND_API_KEY` | No | Only used when `NODE_ENV=production`; otherwise emails are logged to the console and a local dev outbox |
-| `DATABASE_PATH` | No | Local SQLite file for the dev-only email outbox |
+| Variable | Notes |
+|---|---|
+| `DATABASE_URL` | Postgres/Supabase connection string |
+| `CORS_ORIGIN` | Origin allowed to call this API |
+| `FRONTEND_URL` | Where the frontend is deployed — used to build links in verification/reset emails |
+| `ANTHROPIC_API_KEY` / `GROQ_API_KEY` | AI provider key(s); falls back to a mock provider when both are unset |
+| `RESEND_API_KEY` | Sends real verification/reset emails in production |
+| `TRUST_PROXY_HOPS` | Reverse-proxy hop count used to resolve the real client IP for rate limiting — see Security below |
+| `DEMO_EMAIL` | The public demo account's email, exempted from the per-email login rate limit |
 
 ## Testing
 
@@ -81,8 +83,18 @@ npm test
 ```
 
 192 tests (Vitest + React Testing Library) covering hooks, contexts, pages,
-and components. There is no backend test framework — API changes are
-verified manually.
+and components.
+
+Backend tests use Node's built-in test runner:
+
+```bash
+cd server && npm test
+```
+
+Covering the rate limiters (login/email throttling, IP-spoofing
+resistance, the demo-account exemption) and the `/health/db` route. CI
+(`.github/workflows/ci.yml`) runs both a frontend job and a backend job on
+every push and pull request to `main`.
 
 ## Continuous integration
 
