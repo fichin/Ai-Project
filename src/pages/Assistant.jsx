@@ -13,6 +13,7 @@ import {
   fetchConversations,
   createConversationRequest,
   fetchConversationMessages,
+  fetchChatStatus,
   sendChatMessage,
 } from '../components/chat/chatApi'
 import './Assistant.css'
@@ -79,6 +80,15 @@ function Assistant() {
   })
   const messagesError = messagesErrorObj?.message ?? null
   const isShowingMessagesLoadingState = isLoadingMessagesRaw || (Boolean(messagesError) && isFetchingMessages)
+
+  // Only drives the footer note under the input, so a loading or failed
+  // status check just falls back to the neutral (non-simulated) note.
+  const { data: chatStatus } = useQuery({
+    queryKey: ['chat', 'status'],
+    queryFn: ({ signal }) => fetchChatStatus({ signal }),
+    staleTime: Infinity,
+  })
+  const isSimulated = chatStatus?.simulated === true
 
   const activeConversation = conversations.find((c) => c.id === activeId)
 
@@ -260,7 +270,11 @@ function Assistant() {
           </div>
         )}
 
-        <ChatInput onSend={handleSend} disabled={isTyping || isShowingConversationsLoadingState} />
+        <ChatInput
+          onSend={handleSend}
+          disabled={isTyping || isShowingConversationsLoadingState}
+          simulated={isSimulated}
+        />
       </div>
     </div>
   )

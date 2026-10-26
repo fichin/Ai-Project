@@ -6,6 +6,7 @@ import {
   fetchConversations,
   createConversationRequest,
   fetchConversationMessages,
+  fetchChatStatus,
   sendChatMessage,
 } from '../components/chat/chatApi'
 import { useAuth } from '../context/useAuth'
@@ -60,6 +61,8 @@ function resetAllMocks() {
   createConversationRequest.mockReset()
   fetchConversationMessages.mockReset()
   sendChatMessage.mockReset()
+  fetchChatStatus.mockReset()
+  fetchChatStatus.mockResolvedValue({ simulated: false })
 }
 
 describe('Assistant — conversations query', () => {
@@ -313,5 +316,32 @@ describe('Assistant — new chat', () => {
     await waitFor(() =>
       expect(screen.queryByText('Could not create conversation.')).not.toBeInTheDocument(),
     )
+  })
+})
+
+describe('Assistant — footer note', () => {
+  beforeEach(() => {
+    resetAllMocks()
+    useAuth.mockReturnValue({ user: { name: 'Ada', avatarId: 'robot' } })
+    fetchConversations.mockResolvedValue([])
+  })
+
+  it('shows the simulated notice when the server reports the mock provider', async () => {
+    fetchChatStatus.mockResolvedValue({ simulated: true })
+
+    renderAssistant()
+
+    expect(await screen.findByText(/Responses are simulated/)).toBeInTheDocument()
+    expect(screen.queryByText('AI responses may be inaccurate.')).not.toBeInTheDocument()
+  })
+
+  it('shows a neutral note when a real provider is connected', async () => {
+    fetchChatStatus.mockResolvedValue({ simulated: false })
+
+    renderAssistant()
+
+    await waitFor(() => expect(fetchChatStatus).toHaveBeenCalled())
+    expect(await screen.findByText('AI responses may be inaccurate.')).toBeInTheDocument()
+    expect(screen.queryByText(/Responses are simulated/)).not.toBeInTheDocument()
   })
 })
