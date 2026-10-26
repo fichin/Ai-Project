@@ -3,8 +3,17 @@ import { resolveConversation, sendChatMessage } from '../services/chatService.js
 import { chatLimiter } from '../middleware/rateLimiters.js'
 import { MAX_CHAT_MESSAGE_LENGTH } from '../config/limits.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
+import { getAiProvider } from '../services/ai/index.js'
+import { mockProvider } from '../services/ai/providers/mockProvider.js'
 
 const router = Router()
+
+// Lets the chat UI tell users when replies come from the mock provider
+// (no API key configured). Only a boolean is exposed — which real provider
+// is in use isn't the client's concern.
+router.get('/chat/status', (req, res) => {
+  res.json({ simulated: getAiProvider() === mockProvider })
+})
 
 // Same DTO shape as GET /conversations/:id/messages (see
 // conversations.routes.js) so the frontend can treat a freshly-sent message

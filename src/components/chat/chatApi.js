@@ -19,6 +19,10 @@ export function fetchConversationMessages(conversationId, options) {
   return apiRequest(`/api/conversations/${conversationId}/messages`, options)
 }
 
+export function fetchChatStatus(options) {
+  return apiRequest('/api/chat/status', options)
+}
+
 export function sendChatMessage(conversationId, message) {
   return apiRequest('/api/chat', {
     method: 'POST',

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import './ChatInput.css'
 
-function ChatInput({ onSend, disabled }) {
+function ChatInput({ onSend, disabled, simulated = false }) {
   const [value, setValue] = useState('')
   const textareaRef = useRef(null)
 
@@ -60,7 +60,9 @@ function ChatInput({ onSend, disabled }) {
           </svg>
         </button>
       </div>
-      <p className="chat-input-hint">Responses are simulated — no AI model is connected yet.</p>
+      <p className="chat-input-hint">
+        {simulated ? 'Responses are simulated — no AI model is connected yet.' : 'AI responses may be inaccurate.'}
+      </p>
     </div>
   )
 }
