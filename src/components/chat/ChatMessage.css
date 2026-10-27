@@ -1,7 +1,7 @@
 .chat-message {
   display: flex;
   gap: 12px;
-  max-width: 720px;
+  max-width: min(720px, 100%);
 }
 
 .chat-message-user {
@@ -28,6 +28,9 @@
 }
 
 .chat-bubble {
+  /* Lets the bubble shrink below its content's width so a wide code block
+     scrolls inside it (see MarkdownContent.css) instead of overflowing. */
+  min-width: 0;
   padding: 12px 16px;
   border-radius: var(--radius-md);
   color: var(--text-primary);
