@@ -1,6 +1,7 @@
+import Icon from '../icons/Icon'
 import './ChatSidebar.css'
 
-function ChatSidebar({ conversations, activeId, onSelect, onNewChat, isOpen, onClose }) {
+function ChatSidebar({ conversations, activeId, onSelect, onNewChat, onDelete, isOpen, onClose }) {
   return (
     <>
       {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
@@ -13,13 +14,31 @@ function ChatSidebar({ conversations, activeId, onSelect, onNewChat, isOpen, onC
 
         <div className="conversation-list">
           {conversations.map((conversation) => (
-            <button
+            // A row wrapping two sibling buttons (select / delete) rather
+            // than nesting the delete button inside the select one, which
+            // isn't valid HTML and would make both fire on one click.
+            <div
               key={conversation.id}
-              className={`conversation-item ${conversation.id === activeId ? 'active' : ''}`}
-              onClick={() => onSelect(conversation.id)}
+              className={`conversation-row ${conversation.id === activeId ? 'active' : ''}`}
             >
-              {conversation.title}
-            </button>
+              <button
+                className={`conversation-item ${conversation.id === activeId ? 'active' : ''}`}
+                onClick={() => onSelect(conversation.id)}
+              >
+                {conversation.title}
+              </button>
+              {onDelete && (
+                <button
+                  type="button"
+                  className="conversation-delete-btn"
+                  aria-label={`Delete ${conversation.title}`}
+                  title="Delete conversation"
+                  onClick={() => onDelete(conversation)}
+                >
+                  <Icon name="trash" size={14} />
+                </button>
+              )}
+            </div>
           ))}
         </div>
       </aside>

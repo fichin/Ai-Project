@@ -7,11 +7,14 @@ import TypingIndicator from '../components/chat/TypingIndicator'
 import EmptyState from '../components/chat/EmptyState'
 import ChatInput from '../components/chat/ChatInput'
 import Button from '../components/Button'
+import ConfirmDialog from '../components/ConfirmDialog'
 import Icon from '../components/icons/Icon'
+import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation'
 import { createUserMessage, createAssistantMessage, fromServerMessage } from '../components/chat/chatData'
 import {
   fetchConversations,
   createConversationRequest,
+  deleteConversation,
   fetchConversationMessages,
   fetchChatStatus,
   sendChatMessage,
@@ -127,6 +130,37 @@ function Assistant() {
     },
   })
 
+  // Same non-optimistic shape as Projects/Agents: the cache only changes in
+  // onSuccess, after the server confirms the delete, so a failed request
+  // leaves the list exactly as it was and the error shows in the dialog.
+  const deleteConversationMutation = useMutation({
+    mutationFn: (conversation) => deleteConversation(conversation.id),
+    onSuccess: (_data, conversation) => {
+      queryClient.setQueryData(CONVERSATIONS_QUERY_KEY, (prev) =>
+        (prev ?? []).filter((c) => c.id !== conversation.id),
+      )
+      queryClient.removeQueries({ queryKey: messagesKey(conversation.id) })
+      // Deleting the open conversation moves to the most recent remaining
+      // one, or to the empty state (activeId null) when none are left.
+      const remaining = queryClient.getQueryData(CONVERSATIONS_QUERY_KEY) ?? []
+      setActiveId((current) => (current === conversation.id ? (remaining[0]?.id ?? null) : current))
+    },
+  })
+
+  const {
+    pendingItem: deletingConversation,
+    isDeleting,
+    error: deleteError,
+    request: handleRequestDelete,
+    cancel: handleCancelDelete,
+    confirm: handleConfirmDelete,
+  } = useDeleteConfirmation(
+    (conversation) => deleteConversationMutation.mutateAsync(conversation),
+    // The cache is already synced by the mutation's own onSuccess above —
+    // this hook's onDeleted only needs to exist to satisfy its signature.
+    () => {},
+  )
+
   // The optimistic echo, the error-message-appended-on-failure, and moving
   // to a server-assigned conversation id all pre-date this migration —
   // preserved as-is, just operating on the query cache instead of local
@@ -211,6 +245,7 @@ function Assistant() {
         activeId={activeId}
         onSelect={handleSelectConversation}
         onNewChat={handleNewChat}
+        onDelete={handleRequestDelete}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
@@ -276,6 +311,18 @@ function Assistant() {
           simulated={isSimulated}
         />
       </div>
+
+      {deletingConversation && (
+        <ConfirmDialog
+          title="Delete conversation"
+          message={`Are you sure you want to delete "${deletingConversation.title}"? Its messages will be deleted too. This cannot be undone.`}
+          confirmLabel="Delete"
+          isSubmitting={isDeleting}
+          error={deleteError}
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        />
+      )}
     </div>
   )
 }
