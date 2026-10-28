@@ -5,6 +5,7 @@ import Assistant from './Assistant'
 import {
   fetchConversations,
   createConversationRequest,
+  deleteConversation,
   fetchConversationMessages,
   fetchChatStatus,
   sendChatMessage,
@@ -61,6 +62,7 @@ function resetAllMocks() {
   createConversationRequest.mockReset()
   fetchConversationMessages.mockReset()
   sendChatMessage.mockReset()
+  deleteConversation.mockReset()
   fetchChatStatus.mockReset()
   fetchChatStatus.mockResolvedValue({ simulated: false })
 }
@@ -316,6 +318,95 @@ describe('Assistant — new chat', () => {
     await waitFor(() =>
       expect(screen.queryByText('Could not create conversation.')).not.toBeInTheDocument(),
     )
+  })
+})
+
+describe('Assistant — deleting conversations', () => {
+  beforeEach(() => {
+    resetAllMocks()
+    useAuth.mockReturnValue({ user: { name: 'Ada', avatarId: 'robot' } })
+    fetchConversations.mockResolvedValue([conversation, conversation2])
+    fetchConversationMessages.mockImplementation((conversationId) =>
+      Promise.resolve(conversationId === conversation.id ? [userMsg] : [assistantMsg]),
+    )
+  })
+
+  // conversation (id 1) is auto-selected on load, showing its "Hello".
+  async function renderWithFirstConversationActive() {
+    renderAssistant()
+    await waitFor(() => expect(screen.getByText('Hello')).toBeInTheDocument())
+  }
+
+  it('asks for confirmation, then removes a non-active conversation from the list without a reload', async () => {
+    await renderWithFirstConversationActive()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Second chat' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Are you sure you want to delete "Second chat"?')
+
+    deleteConversation.mockResolvedValueOnce(null)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(deleteConversation).toHaveBeenCalledWith(conversation2.id)
+    expect(screen.queryByRole('button', { name: 'Second chat' })).not.toBeInTheDocument()
+    // Removed from the cache directly — no refetch of the list — and the
+    // open conversation is untouched.
+    expect(fetchConversations).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'First chat' })).toBeInTheDocument()
+    expect(screen.getByText('Hello')).toBeInTheDocument()
+  })
+
+  it('does nothing when the confirmation is cancelled', async () => {
+    await renderWithFirstConversationActive()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Second chat' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(deleteConversation).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Second chat' })).toBeInTheDocument()
+  })
+
+  it('switches to the next conversation when the active one is deleted', async () => {
+    await renderWithFirstConversationActive()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete First chat' }))
+    deleteConversation.mockResolvedValueOnce(null)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(screen.getByText('Hi there')).toBeInTheDocument())
+    expect(deleteConversation).toHaveBeenCalledWith(conversation.id)
+    expect(fetchConversationMessages).toHaveBeenCalledWith(conversation2.id, expect.anything())
+    expect(screen.queryByRole('button', { name: 'First chat' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Hello')).not.toBeInTheDocument()
+  })
+
+  it('shows the empty state when the last remaining conversation is deleted', async () => {
+    fetchConversations.mockResolvedValue([conversation])
+    await renderWithFirstConversationActive()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete First chat' }))
+    deleteConversation.mockResolvedValueOnce(null)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(screen.getByText('How can I help you today?')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'First chat' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Hello')).not.toBeInTheDocument()
+  })
+
+  it('shows the error in the dialog and keeps the list unchanged when the delete fails', async () => {
+    await renderWithFirstConversationActive()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete First chat' }))
+    deleteConversation.mockRejectedValueOnce(new Error('Could not delete conversation.'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('dialog')).toHaveTextContent('Could not delete conversation.'),
+    )
+    expect(screen.getByRole('button', { name: 'First chat' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Second chat' })).toBeInTheDocument()
+    expect(screen.getByText('Hello')).toBeInTheDocument()
   })
 })
 

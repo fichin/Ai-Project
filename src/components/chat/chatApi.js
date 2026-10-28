@@ -15,6 +15,11 @@ export function createConversationRequest(title) {
   })
 }
 
+// Resolves with null — the server answers 204 No Content (see apiRequest).
+export function deleteConversation(conversationId) {
+  return apiRequest(`/api/conversations/${conversationId}`, { method: 'DELETE' })
+}
+
 export function fetchConversationMessages(conversationId, options) {
   return apiRequest(`/api/conversations/${conversationId}/messages`, options)
 }

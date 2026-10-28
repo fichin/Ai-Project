@@ -44,8 +44,27 @@
   overflow-y: auto;
 }
 
+/* The row owns the hover/active background so it spans both the title
+   button and the delete button next to it. */
+.conversation-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast) ease;
+}
+
+.conversation-row:hover {
+  background: var(--bg-elevated-hover);
+}
+
+.conversation-row.active {
+  background: var(--bg-elevated);
+}
+
 .conversation-item {
   position: relative;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   padding: 10px 12px 10px 16px;
   border: none;
@@ -57,17 +76,45 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   cursor: pointer;
-  transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
+  transition: color var(--transition-fast) ease;
 }
 
-.conversation-item:hover {
-  background: var(--bg-elevated-hover);
-  color: var(--text-primary);
-}
-
+.conversation-row:hover .conversation-item,
 .conversation-item.active {
-  background: var(--bg-elevated);
   color: var(--text-primary);
+}
+
+/* Hidden until the row is hovered or anything in it has keyboard focus —
+   opacity (not display/visibility) keeps it in the tab order, so tabbing
+   onto it reveals it. */
+.conversation-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin-right: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast) ease, border-color var(--transition-fast) ease,
+    color var(--transition-fast) ease, background var(--transition-fast) ease;
+}
+
+.conversation-row:hover .conversation-delete-btn,
+.conversation-row:focus-within .conversation-delete-btn {
+  opacity: 1;
+}
+
+/* Same danger hover treatment as ProjectCard's/AgentCard's delete buttons. */
+.conversation-delete-btn:hover {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
 }
 
 /* Same active-indicator language as AppSidebar's nav links, so the
@@ -86,6 +133,17 @@
 
 .sidebar-overlay {
   display: none;
+}
+
+/* Touch screens have no hover to reveal the button, so it's always shown
+   there, at a 44px minimum touch target. */
+@media (hover: none), (max-width: 900px) {
+  .conversation-delete-btn {
+    width: 44px;
+    height: 44px;
+    margin-right: 0;
+    opacity: 1;
+  }
 }
 
 @media (max-width: 900px) {
