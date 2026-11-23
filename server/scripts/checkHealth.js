@@ -1,3 +1,6 @@
+import { appendFile } from 'node:fs/promises'
+import { pathToFileURL } from 'node:url'
+
 // Render's free tier can take ~50s to wake up, so a single failed request
 // doesn't mean the app is down.
 const DEFAULTS = {
@@ -57,4 +60,41 @@ export async function checkHealth(baseUrl, options = {}) {
   }
 
   return { status: 'ok' }
+}
+
+const MESSAGES = {
+  ok: 'Live demo is healthy.',
+  backend_down: 'Backend is not responding (Render). See docs/runbook.md#backend_down',
+  db_down: 'Backend is up but cannot reach the database (Supabase). See docs/runbook.md#db_down',
+}
+
+export function formatResult(result) {
+  const message = MESSAGES[result.status]
+  return result.problem ? `${message} Last problem: ${result.problem}.` : message
+}
+
+// Kept separate from the top-level script so tests can call it with fakes
+// instead of touching process.argv, process.exit or real files.
+export async function runCli({ argv, env, log, appendFile, check = checkHealth }) {
+  const baseUrl = argv[2]
+  if (!baseUrl) {
+    log('Usage: node scripts/checkHealth.js <base-url>')
+    return 2
+  }
+
+  const result = await check(baseUrl)
+  log(formatResult(result))
+
+  // GitHub Actions reads step outputs from this file; the next step uses
+  // `status` to title or close the outage issue.
+  if (env.GITHUB_OUTPUT) {
+    await appendFile(env.GITHUB_OUTPUT, `status=${result.status}\n`)
+  }
+
+  return result.status === 'ok' ? 0 : 1
+}
+
+const isRunDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
+if (isRunDirectly) {
+  process.exitCode = await runCli({ argv: process.argv, env: process.env, log: console.log, appendFile })
 }

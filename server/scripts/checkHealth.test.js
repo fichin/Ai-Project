@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { checkEndpoint, checkHealth } from './checkHealth.js'
+import { checkEndpoint, checkHealth, formatResult, runCli } from './checkHealth.js'
 
 // Each call to the fake fetch takes the next scripted outcome: a number is an
 // HTTP status, an Error is thrown like a real network failure.
@@ -122,4 +122,60 @@ test('checkHealth: tolerates a trailing slash in the base URL', async () => {
   await checkHealth('https://demo.example/', { ...fast, fetchFn })
 
   assert.equal(calls[0], 'https://demo.example/api/health')
+})
+
+test('formatResult: includes the problem only when there is one', () => {
+  assert.equal(formatResult({ status: 'ok' }), 'Live demo is healthy.')
+  assert.match(formatResult({ status: 'db_down', problem: 'HTTP 503' }), /database.*Last problem: HTTP 503\.$/)
+})
+
+function cliHarness(result, env = {}) {
+  const logs = []
+  const writes = []
+  return {
+    logs,
+    writes,
+    deps: {
+      env,
+      log: (line) => logs.push(line),
+      appendFile: async (path, text) => writes.push({ path, text }),
+      check: async () => result,
+    },
+  }
+}
+
+test('runCli: exits 0 when healthy and writes the status for the next workflow step', async () => {
+  const { deps, logs, writes } = cliHarness({ status: 'ok' }, { GITHUB_OUTPUT: '/tmp/out' })
+
+  const code = await runCli({ ...deps, argv: ['node', 'checkHealth.js', 'https://demo.example'] })
+
+  assert.equal(code, 0)
+  assert.deepEqual(logs, ['Live demo is healthy.'])
+  assert.deepEqual(writes, [{ path: '/tmp/out', text: 'status=ok\n' }])
+})
+
+test('runCli: exits 1 on an outage', async () => {
+  const { deps, writes } = cliHarness({ status: 'db_down', problem: 'HTTP 503' }, { GITHUB_OUTPUT: '/tmp/out' })
+
+  const code = await runCli({ ...deps, argv: ['node', 'checkHealth.js', 'https://demo.example'] })
+
+  assert.equal(code, 1)
+  assert.deepEqual(writes, [{ path: '/tmp/out', text: 'status=db_down\n' }])
+})
+
+test('runCli: skips the output file when not running in GitHub Actions', async () => {
+  const { deps, writes } = cliHarness({ status: 'ok' })
+
+  await runCli({ ...deps, argv: ['node', 'checkHealth.js', 'https://demo.example'] })
+
+  assert.deepEqual(writes, [])
+})
+
+test('runCli: exits 2 with usage help when no URL is given', async () => {
+  const { deps, logs } = cliHarness({ status: 'ok' })
+
+  const code = await runCli({ ...deps, argv: ['node', 'checkHealth.js'] })
+
+  assert.equal(code, 2)
+  assert.match(logs[0], /^Usage:/)
 })
