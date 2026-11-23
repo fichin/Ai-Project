@@ -19,6 +19,7 @@ import { titleFromMessage } from '../utils/titleFromMessage.js'
 import { env } from '../config/env.js'
 import {
   MAX_ASSISTANT_MESSAGES_PER_CONVERSATION,
+  SYSTEM_PROMPT,
   CONVERSATION_LIMIT_MESSAGE,
   CONVERSATION_COUNT_LIMIT_MESSAGE,
   USER_DAILY_AI_LIMIT_MESSAGE,
@@ -82,7 +83,7 @@ export async function generateChatReply(message) {
   const provider = getAiProvider()
 
   try {
-    return await provider.generateReply(message)
+    return await provider.generateReply({ system: SYSTEM_PROMPT, messages: [{ role: 'user', content: message }] })
   } catch (error) {
     console.error(`[ai:${provider.name}] failed to generate a reply:`, error)
     throw new AiProviderError('The AI provider is currently unavailable. Please try again later.')

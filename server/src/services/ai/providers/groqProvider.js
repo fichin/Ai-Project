@@ -1,5 +1,4 @@
 import { env } from '../../../config/env.js'
-import { SYSTEM_PROMPT } from '../../../config/chat.js'
 
 const GROQ_CHAT_COMPLETIONS_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
@@ -9,12 +8,26 @@ function assertConfigured() {
   }
 }
 
-// Groq's API is OpenAI-compatible REST — a plain `fetch` call is enough,
-// no SDK dependency needed (unlike anthropicProvider, which uses Anthropic's
-// own SDK since that's the primary paid provider).
+// OpenAI-compatible format: the system prompt is the first message, not a
+// separate field as in Anthropic's API.
+export function buildGroqRequest({ system, messages }, model) {
+  return {
+    model,
+    messages: [{ role: 'system', content: system }, ...messages],
+    max_tokens: 1024,
+    // gpt-oss models spend tokens on hidden reasoning first; "low" leaves room
+    // for the visible answer within max_tokens.
+    reasoning_effort: 'low',
+  }
+}
+
+export function extractGroqText(data) {
+  return data.choices?.[0]?.message?.content ?? ''
+}
+
 export const groqProvider = {
   name: 'groq',
-  async generateReply(message) {
+  async generateReply(input) {
     assertConfigured()
 
     const response = await fetch(GROQ_CHAT_COMPLETIONS_URL, {
@@ -23,21 +36,7 @@ export const groqProvider = {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${env.groqApiKey}`,
       },
-      body: JSON.stringify({
-        model: env.groqModel,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: message },
-        ],
-        max_tokens: 1024,
-        // Groq's gpt-oss models spend part of the token budget on hidden
-        // chain-of-thought before writing the actual answer — on a low
-        // max_tokens that reasoning can eat the whole budget and leave
-        // `content` empty. "low" keeps that reasoning pass short so the
-        // visible answer reliably comes through; this app doesn't need
-        // the model to show its work.
-        reasoning_effort: 'low',
-      }),
+      body: JSON.stringify(buildGroqRequest(input, env.groqModel)),
     })
 
     if (!response.ok) {
@@ -45,7 +44,6 @@ export const groqProvider = {
       throw new Error(`Groq API request failed (${response.status}): ${errorBody}`)
     }
 
-    const data = await response.json()
-    return data.choices?.[0]?.message?.content ?? ''
+    return extractGroqText(await response.json())
   },
 }

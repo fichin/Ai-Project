@@ -1,6 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { env } from '../../../config/env.js'
-import { SYSTEM_PROMPT } from '../../../config/chat.js'
 
 let client = null
 
@@ -16,22 +15,22 @@ function getClient() {
   return client
 }
 
-// Not exercised until ANTHROPIC_API_KEY is set — getAiProvider() only selects
-// this provider once a key is configured, and getClient() re-checks before
-// ever touching the network.
+export function buildAnthropicRequest({ system, messages }, model) {
+  return { model, max_tokens: 1024, system, messages }
+}
+
+// A reply can contain several text blocks; joining them keeps the whole answer.
+export function extractAnthropicText(response) {
+  return (response.content ?? [])
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('')
+}
+
 export const anthropicProvider = {
   name: 'anthropic',
-  async generateReply(message) {
-    const anthropic = getClient()
-
-    const response = await anthropic.messages.create({
-      model: env.anthropicModel,
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: message }],
-    })
-
-    const textBlock = response.content?.find((block) => block.type === 'text')
-    return textBlock?.text ?? ''
+  async generateReply(input) {
+    const response = await getClient().messages.create(buildAnthropicRequest(input, env.anthropicModel))
+    return extractAnthropicText(response)
   },
 }
