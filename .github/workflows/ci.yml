@@ -70,4 +70,4 @@ jobs:
       # syntax errors in routes or services before they ever reach a deploy.
       - name: Syntax-check source files
         working-directory: server
-        run: find src -name "*.js" -exec node --check {} +
+        run: find src scripts -name "*.js" -exec node --check {} +

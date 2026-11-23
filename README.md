@@ -115,9 +115,10 @@ is actually broken — lint errors, failing tests, or a build that doesn't
 compile — before it ever reaches `main`, let alone the deployed app. See
 the **Actions** tab on GitHub for run history.
 
-A separate scheduled workflow (`.github/workflows/keepalive.yml`) pings the
-live deployment's `GET /api/health/db` every 3 days so the free Supabase
-project backing it doesn't auto-pause itself from inactivity.
+A separate scheduled workflow (`.github/workflows/keepalive.yml`) checks the
+live demo daily. It tells "backend down" apart from "database down", opens a
+GitHub issue labelled `outage` when the check fails and closes it on recovery.
+What to do when it fires is in [docs/runbook.md](docs/runbook.md).
 
 ## Security
 
