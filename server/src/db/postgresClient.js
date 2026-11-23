@@ -46,6 +46,24 @@ export function getPostgresPool() {
   return pool
 }
 
+// Runs fn(client) inside BEGIN/COMMIT on one dedicated connection. Every
+// query in a transaction must use that same client, not the pool.
+export async function withTransaction(fn, pool = getPostgresPool()) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const result = await fn(client)
+    await client.query('COMMIT')
+    return result
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    // Without this, every failed transaction leaks a connection until the pool hangs.
+    client.release()
+  }
+}
+
 export async function closePostgresPool() {
   if (pool) {
     await pool.end()

@@ -15,6 +15,10 @@ Keep responses concise and practical. You do not have access to the user's actua
 // actually consumes the provider's quota.
 export const MAX_ASSISTANT_MESSAGES_PER_CONVERSATION = 10
 
+// Every request resends the history, so this bounds cost and tokens per call.
+// About 4 characters per token in English, so roughly 4,000 tokens.
+export const MAX_HISTORY_CHARS = 16_000
+
 export const CONVERSATION_LIMIT_MESSAGE =
   'This conversation has reached its message limit for this demo. Please start a new chat to continue.'
 
