@@ -40,3 +40,21 @@ export async function checkEndpoint(url, options = {}) {
 
   return { ok: false, attempts, problem }
 }
+
+// /api/health proves the backend is up; /api/health/db proves it can reach
+// Postgres. Checking them in order tells us which layer is broken.
+export async function checkHealth(baseUrl, options = {}) {
+  const root = baseUrl.replace(/\/+$/, '')
+
+  const backend = await checkEndpoint(`${root}/api/health`, options)
+  if (!backend.ok) {
+    return { status: 'backend_down', problem: backend.problem }
+  }
+
+  const database = await checkEndpoint(`${root}/api/health/db`, options)
+  if (!database.ok) {
+    return { status: 'db_down', problem: database.problem }
+  }
+
+  return { status: 'ok' }
+}

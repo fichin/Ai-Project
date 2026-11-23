@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { checkEndpoint } from './checkHealth.js'
+import { checkEndpoint, checkHealth } from './checkHealth.js'
 
 // Each call to the fake fetch takes the next scripted outcome: a number is an
 // HTTP status, an Error is thrown like a real network failure.
@@ -70,4 +70,56 @@ test('reports the underlying network error code', async () => {
   const result = await checkEndpoint('https://x/api/health', { fetchFn, sleep, attempts: 1 })
 
   assert.deepEqual(result, { ok: false, attempts: 1, problem: 'network error (ENOTFOUND)' })
+})
+
+// Routes each URL to its own scripted outcomes, so the backend and database
+// checks can fail independently.
+function routedFetch(routes) {
+  const calls = []
+  const counters = {}
+  const fetchFn = async (url) => {
+    calls.push(url)
+    const path = new URL(url).pathname
+    counters[path] = (counters[path] ?? 0) + 1
+    const next = routes[path][counters[path] - 1]
+    if (next instanceof Error) throw next
+    return { ok: next >= 200 && next < 300, status: next }
+  }
+  return { fetchFn, calls }
+}
+
+const fast = { sleep: async () => {}, attempts: 2 }
+
+test('checkHealth: ok when both endpoints answer, checked backend first', async () => {
+  const { fetchFn, calls } = routedFetch({ '/api/health': [200], '/api/health/db': [200] })
+
+  const result = await checkHealth('https://demo.example', { ...fast, fetchFn })
+
+  assert.deepEqual(result, { status: 'ok' })
+  assert.deepEqual(calls, ['https://demo.example/api/health', 'https://demo.example/api/health/db'])
+})
+
+test('checkHealth: backend_down skips the database check', async () => {
+  const { fetchFn, calls } = routedFetch({ '/api/health': [502, 502], '/api/health/db': [200] })
+
+  const result = await checkHealth('https://demo.example', { ...fast, fetchFn })
+
+  assert.deepEqual(result, { status: 'backend_down', problem: 'HTTP 502' })
+  assert.ok(!calls.some((url) => url.endsWith('/db')), 'db must not be checked when the backend is down')
+})
+
+test('checkHealth: db_down when the backend is up but the database is not', async () => {
+  const { fetchFn } = routedFetch({ '/api/health': [200], '/api/health/db': [503, 503] })
+
+  const result = await checkHealth('https://demo.example', { ...fast, fetchFn })
+
+  assert.deepEqual(result, { status: 'db_down', problem: 'HTTP 503' })
+})
+
+test('checkHealth: tolerates a trailing slash in the base URL', async () => {
+  const { fetchFn, calls } = routedFetch({ '/api/health': [200], '/api/health/db': [200] })
+
+  await checkHealth('https://demo.example/', { ...fast, fetchFn })
+
+  assert.equal(calls[0], 'https://demo.example/api/health')
 })
