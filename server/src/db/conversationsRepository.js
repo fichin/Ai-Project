@@ -33,13 +33,12 @@ export async function getConversationByIdForUser(id, userId) {
   return rows[0] ?? null
 }
 
-export async function createConversation(userId, title) {
-  const pool = getPostgresPool()
+// `db` is the pool by default, or a transaction client from withTransaction.
+export async function createConversation(userId, title, db = getPostgresPool()) {
   const { rows } = title
-    ? await pool.query('INSERT INTO conversations (user_id, title) VALUES ($1, $2) RETURNING id', [userId, title])
-    : await pool.query('INSERT INTO conversations (user_id) VALUES ($1) RETURNING id', [userId])
-
-  return getConversationByIdForUser(rows[0].id, userId)
+    ? await db.query('INSERT INTO conversations (user_id, title) VALUES ($1, $2) RETURNING *', [userId, title])
+    : await db.query('INSERT INTO conversations (user_id) VALUES ($1) RETURNING *', [userId])
+  return rows[0]
 }
 
 export async function deleteConversation(id, userId) {
@@ -50,13 +49,10 @@ export async function deleteConversation(id, userId) {
   return result.rowCount > 0
 }
 
-export async function touchConversation(id) {
-  await getPostgresPool().query(`UPDATE conversations SET updated_at = ${NOW_UTC_SQL} WHERE id = $1`, [id])
+export async function touchConversation(id, db = getPostgresPool()) {
+  await db.query(`UPDATE conversations SET updated_at = ${NOW_UTC_SQL} WHERE id = $1`, [id])
 }
 
-export async function setConversationTitle(id, title) {
-  await getPostgresPool().query(`UPDATE conversations SET title = $1, updated_at = ${NOW_UTC_SQL} WHERE id = $2`, [
-    title,
-    id,
-  ])
+export async function setConversationTitle(id, title, db = getPostgresPool()) {
+  await db.query(`UPDATE conversations SET title = $1, updated_at = ${NOW_UTC_SQL} WHERE id = $2`, [title, id])
 }

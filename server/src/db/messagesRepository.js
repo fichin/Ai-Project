@@ -57,13 +57,11 @@ export async function countAssistantMessagesSince(since) {
   return rows[0].count
 }
 
-export async function createMessage(conversationId, role, content) {
-  const pool = getPostgresPool()
-  const { rows } = await pool.query(
-    'INSERT INTO messages (conversation_id, role, content) VALUES ($1, $2, $3) RETURNING id',
+// `db` is the pool by default, or a transaction client from withTransaction.
+export async function createMessage(conversationId, role, content, db = getPostgresPool()) {
+  const { rows } = await db.query(
+    'INSERT INTO messages (conversation_id, role, content) VALUES ($1, $2, $3) RETURNING *',
     [conversationId, role, content],
   )
-
-  const { rows: messageRows } = await pool.query('SELECT * FROM messages WHERE id = $1', [rows[0].id])
-  return messageRows[0]
+  return rows[0]
 }
