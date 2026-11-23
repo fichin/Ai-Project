@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { resolveConversation, sendChatMessage } from '../services/chatService.js'
+import { sendChatMessage } from '../services/chatService.js'
 import { chatLimiter } from '../middleware/rateLimiters.js'
 import { MAX_CHAT_MESSAGE_LENGTH } from '../config/limits.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
@@ -47,10 +47,13 @@ router.post(
       }
     }
 
-    const conversation = await resolveConversation(conversationIdInput, req.user.id)
-    const { userMessage, assistantMessage } = await sendChatMessage(conversation.id, message, req.user.id)
+    const { conversationId, userMessage, assistantMessage } = await sendChatMessage({
+      conversationId: conversationIdInput ?? null,
+      message,
+      userId: req.user.id,
+    })
     res.json({
-      conversationId: conversation.id,
+      conversationId,
       userMessage: toMessageDto(userMessage),
       assistantMessage: toMessageDto(assistantMessage),
     })

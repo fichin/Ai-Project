@@ -8,13 +8,14 @@ import {
   setConversationTitle,
 } from '../db/conversationsRepository.js'
 import {
-  countMessages,
   countAssistantMessages,
   countAssistantMessagesByUserSince,
   countAssistantMessagesSince,
   createMessage,
+  listMessagesByConversation,
 } from '../db/messagesRepository.js'
-import { utcTextDaysAgo } from '../db/postgresClient.js'
+import { utcTextDaysAgo, withTransaction } from '../db/postgresClient.js'
+import { buildModelMessages } from './chatHistory.js'
 import { titleFromMessage } from '../utils/titleFromMessage.js'
 import { env } from '../config/env.js'
 import {
@@ -69,87 +70,88 @@ export class GlobalAiQuotaError extends Error {
   }
 }
 
-// Shared by resolveConversation below (implicit creation from /api/chat)
+// Shared by sendChatMessage below (implicit creation from /api/chat)
 // and POST /api/conversations (explicit creation) — both create a row in
 // the same table against the same per-user cap.
-export async function assertUnderConversationLimit(userId) {
-  const count = await countConversationsByUser(userId)
-  if (count >= env.aiUsageCaps.maxConversationsPerUser) {
+export async function assertUnderConversationLimit(userId, count = countConversationsByUser) {
+  if ((await count(userId)) >= env.aiUsageCaps.maxConversationsPerUser) {
     throw new ConversationQuotaError()
   }
 }
 
-export async function generateChatReply(message) {
-  const provider = getAiProvider()
-
+export async function generateChatReply(messages, provider = getAiProvider()) {
+  let reply
   try {
-    return await provider.generateReply({ system: SYSTEM_PROMPT, messages: [{ role: 'user', content: message }] })
+    reply = await provider.generateReply({ system: SYSTEM_PROMPT, messages })
   } catch (error) {
     console.error(`[ai:${provider.name}] failed to generate a reply:`, error)
     throw new AiProviderError('The AI provider is currently unavailable. Please try again later.')
   }
+
+  // Saving a blank assistant message would also burn one of the user's quota slots.
+  if (typeof reply !== 'string' || reply.trim() === '') {
+    console.error(`[ai:${provider.name}] returned an empty reply`)
+    throw new AiProviderError('The AI provider returned an empty reply. Please try again.')
+  }
+  return reply
 }
 
-// conversationIdInput missing/null => start a new conversation automatically
-// (keeps /api/chat usable from the Assistant's empty state without forcing a
-// POST /api/conversations first). A non-null id must belong to userId.
-export async function resolveConversation(conversationIdInput, userId) {
-  if (conversationIdInput === undefined || conversationIdInput === null) {
-    await assertUnderConversationLimit(userId)
-    return createConversation(userId, null)
-  }
-
-  const conversation = await getConversationByIdForUser(conversationIdInput, userId)
-  if (!conversation) {
-    throw new ConversationNotFoundError()
-  }
-
-  return conversation
+export const defaultChatDeps = {
+  getConversationByIdForUser,
+  countConversationsByUser,
+  countAssistantMessages,
+  countAssistantMessagesSince,
+  countAssistantMessagesByUserSince,
+  listMessagesByConversation,
+  createConversation,
+  createMessage,
+  setConversationTitle,
+  touchConversation,
+  withTransaction,
+  generateChatReply,
 }
 
-// Returns the persisted rows (not just the reply text) so callers have real
-// database ids to key off of — the frontend uses these instead of throwaway
-// client-generated ids, which is what lets a future streaming endpoint patch
-// a specific in-flight message by id instead of guessing at ordering.
+// conversationId null => start a new conversation (keeps /api/chat usable
+// from the Assistant's empty state). It is only created once the AI has
+// replied, so a failed call leaves no empty conversation eating the quota.
 //
-// The per-user and global daily caps below are both derived live from
-// COUNT queries over the existing messages table (rolling 24h window via
-// utcTextDaysAgo(1), not calendar-day) rather than a separate counter that
-// would need resetting at midnight or incrementing/decrementing in two
-// places. At this app's scale that's a couple of cheap indexed-by-nothing
-// COUNT(*) queries per chat request, not a real cost — if this ever needed
-// to handle meaningfully more traffic, a cached/materialized counter would
-// be the next step, but that's not a problem this app has today.
-export async function sendChatMessage(conversationId, message, userId) {
-  const assistantMessageCount = await countAssistantMessages(conversationId)
-  if (assistantMessageCount >= MAX_ASSISTANT_MESSAGES_PER_CONVERSATION) {
-    throw new ConversationLimitError()
+// The daily caps are COUNT queries over messages in a rolling 24h window, so
+// there's no separate counter to reset. Two concurrent sends to the same
+// conversation can both pass the checks and both see the same history.
+export async function sendChatMessage({ conversationId, message, userId }, deps = defaultChatDeps) {
+  let conversation = null
+  if (conversationId !== null && conversationId !== undefined) {
+    conversation = await deps.getConversationByIdForUser(conversationId, userId)
+    if (!conversation) throw new ConversationNotFoundError()
+
+    if ((await deps.countAssistantMessages(conversation.id)) >= MAX_ASSISTANT_MESSAGES_PER_CONVERSATION) {
+      throw new ConversationLimitError()
+    }
+  } else {
+    await assertUnderConversationLimit(userId, deps.countConversationsByUser)
   }
 
   const since = utcTextDaysAgo(1)
-
-  const globalAiCallsToday = await countAssistantMessagesSince(since)
-  if (globalAiCallsToday >= env.aiUsageCaps.maxAiCallsPerDay) {
+  if ((await deps.countAssistantMessagesSince(since)) >= env.aiUsageCaps.maxAiCallsPerDay) {
     throw new GlobalAiQuotaError()
   }
-
-  const userAiMessagesToday = await countAssistantMessagesByUserSince(userId, since)
-  if (userAiMessagesToday >= env.aiUsageCaps.maxAiMessagesPerUserPerDay) {
+  if ((await deps.countAssistantMessagesByUserSince(userId, since)) >= env.aiUsageCaps.maxAiMessagesPerUserPerDay) {
     throw new UserAiQuotaError()
   }
 
-  const isFirstMessage = (await countMessages(conversationId)) === 0
+  const history = conversation ? await deps.listMessagesByConversation(conversation.id) : []
+  const reply = await deps.generateChatReply(buildModelMessages(history, message))
 
-  const userMessage = await createMessage(conversationId, 'user', message)
-
-  if (isFirstMessage) {
-    await setConversationTitle(conversationId, titleFromMessage(message))
-  }
-
-  const reply = await generateChatReply(message)
-
-  const assistantMessage = await createMessage(conversationId, 'assistant', reply)
-  await touchConversation(conversationId)
-
-  return { userMessage, assistantMessage }
+  // Only now, after the slow AI call, do we borrow a connection, so the
+  // transaction stays short and can't tie up the pool while the AI thinks.
+  return deps.withTransaction(async (tx) => {
+    const conv = conversation ?? (await deps.createConversation(userId, null, tx))
+    const userMessage = await deps.createMessage(conv.id, 'user', message, tx)
+    if (history.length === 0) {
+      await deps.setConversationTitle(conv.id, titleFromMessage(message), tx)
+    }
+    const assistantMessage = await deps.createMessage(conv.id, 'assistant', reply, tx)
+    await deps.touchConversation(conv.id, tx)
+    return { conversationId: conv.id, userMessage, assistantMessage }
+  })
 }
