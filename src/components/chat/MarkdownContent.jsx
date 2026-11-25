@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import rehypeSanitize from 'rehype-sanitize'
+import remarkGfm from 'remark-gfm'
 import './MarkdownContent.css'
 
 // Assistant replies are model output, so they're treated as untrusted:
@@ -9,6 +10,10 @@ import './MarkdownContent.css'
 // anything outside a known-safe set of elements, attributes and URL
 // protocols (e.g. `javascript:` links).
 const REHYPE_PLUGINS = [rehypeSanitize]
+
+// Models answer in GitHub-flavoured Markdown (tables, ~~strike~~, task lists),
+// which plain CommonMark leaves as raw text.
+const REMARK_PLUGINS = [remarkGfm]
 
 const COMPONENTS = {
   a: ({ href, children }) => (
@@ -21,7 +26,7 @@ const COMPONENTS = {
 function MarkdownContent({ children }) {
   return (
     <div className="markdown-content">
-      <ReactMarkdown rehypePlugins={REHYPE_PLUGINS} components={COMPONENTS}>
+      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={COMPONENTS}>
         {children}
       </ReactMarkdown>
     </div>

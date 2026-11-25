@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import ChatMessage from './ChatMessage'
 
 // ChatMessage lazy-loads MarkdownContent. Warming the module up front keeps
@@ -41,6 +41,35 @@ describe('ChatMessage — Markdown rendering', () => {
     expect(link).toHaveAttribute('href', 'https://example.com/docs')
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('renders GFM tables, strikethrough and task lists', async () => {
+    const content = [
+      '| Role | Company |',
+      '| --- | --- |',
+      '| Frontend | Acme |',
+      '',
+      'This is ~~old~~ news.',
+      '',
+      '- [x] Send CV',
+      '- [ ] Follow up',
+    ].join('\n')
+
+    render(<ChatMessage role="assistant" content={content} />)
+
+    const table = await screen.findByRole('table')
+    const headers = within(table).getAllByRole('columnheader')
+    expect(headers.map((th) => th.textContent)).toEqual(['Role', 'Company'])
+    expect(within(table).getByRole('cell', { name: 'Acme' })).toBeInTheDocument()
+
+    expect(screen.getByText('old').tagName).toBe('DEL')
+
+    const boxes = screen.getAllByRole('checkbox')
+    expect(boxes).toHaveLength(2)
+    expect(boxes[0]).toBeChecked()
+    expect(boxes[1]).not.toBeChecked()
+    // Read-only: the user can't tick the model's checklist.
+    boxes.forEach((box) => expect(box).toBeDisabled())
   })
 
   it('keeps user messages as plain text', () => {
