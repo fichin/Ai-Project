@@ -27,8 +27,8 @@ Demo login: `demo@example.com` / `Demo1234!` (pre-verified, no signup needed)
 ## Features
 
 - **AI assistant chat**: Anthropic Claude when `ANTHROPIC_API_KEY` is set.
-  Groq is used only when that key is missing and `GROQ_API_KEY` is set, and
-  Groq takes over automatically if Anthropic is down or rate-limited. With
+  Groq is used only when that key is missing and `GROQ_API_KEY` is set; there
+  is no runtime fallback, so if Anthropic fails the chat shows an error. With
   neither key, a mock provider answers, and the chat says it's simulated.
 - **Chat memory**: each request sends the earlier turns of the conversation,
   trimmed to a character budget (`MAX_HISTORY_CHARS`) so cost per call stays
