@@ -59,9 +59,7 @@ export class UserAiQuotaError extends Error {
   }
 }
 
-// 503, not 429: this isn't "you personally are going too fast", it's "the
-// whole demo is out of AI quota for today" — a service-availability state
-// every caller shares, not something retrying sooner would fix.
+// 503, not 429: the whole demo is out of quota, so retrying sooner won't help.
 export class GlobalAiQuotaError extends Error {
   constructor() {
     super(GLOBAL_DAILY_AI_LIMIT_MESSAGE)
@@ -70,9 +68,6 @@ export class GlobalAiQuotaError extends Error {
   }
 }
 
-// Shared by sendChatMessage below (implicit creation from /api/chat)
-// and POST /api/conversations (explicit creation) — both create a row in
-// the same table against the same per-user cap.
 export async function assertUnderConversationLimit(userId, count = countConversationsByUser) {
   if ((await count(userId)) >= env.aiUsageCaps.maxConversationsPerUser) {
     throw new ConversationQuotaError()
@@ -111,13 +106,9 @@ export const defaultChatDeps = {
   generateChatReply,
 }
 
-// conversationId null => start a new conversation (keeps /api/chat usable
-// from the Assistant's empty state). It is only created once the AI has
-// replied, so a failed call leaves no empty conversation eating the quota.
-//
-// The daily caps are COUNT queries over messages in a rolling 24h window, so
-// there's no separate counter to reset. Two concurrent sends to the same
-// conversation can both pass the checks and both see the same history.
+// A new conversation is only created after the AI replies, so a failed call
+// leaves no empty row eating the quota. Known race: two concurrent sends to one
+// conversation can both pass the caps and see the same history.
 export async function sendChatMessage({ conversationId, message, userId }, deps = defaultChatDeps) {
   let conversation = null
   if (conversationId !== null && conversationId !== undefined) {

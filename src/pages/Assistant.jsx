@@ -21,10 +21,6 @@ import {
 } from '../components/chat/chatApi'
 import './Assistant.css'
 
-// Assistant's data (conversations/messages) is entirely its own — it
-// doesn't read or write anything from the `['projects']`/`['agents']`
-// caches, so this page introduces its own query keys rather than sharing
-// one of theirs.
 const CONVERSATIONS_QUERY_KEY = ['conversations']
 
 function messagesKey(conversationId) {
@@ -36,18 +32,11 @@ function Assistant() {
   const queryClient = useQueryClient()
   const [activeId, setActiveId] = useState(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  // Surfaces a "New chat" failure in the same error+Retry slot the
-  // conversations query's own error uses — the pre-migration code shared
-  // one `conversationsError` state between the two — without conflating a
-  // mutation's error with the query's own error object.
+  // Kept apart from the query's error so Retry can clear it, but shown in the same slot.
   const [createConversationError, setCreateConversationError] = useState(null)
   const messagesEndRef = useRef(null)
-  // Auto-selects the most recent conversation exactly once, tied to the
-  // first successful conversations load — same as the original
-  // `initialize()` (called once on mount) rather than re-running on every
-  // later change to the list, e.g. after creating or sending a first
-  // message. Stays false across a failed attempt so a Retry still gets to
-  // auto-select once it succeeds.
+  // Auto-select only after the first successful load, so later list changes
+  // don't yank the user to another chat, and a Retry after a failure still gets to.
   const hasAutoSelectedRef = useRef(false)
 
   const {
@@ -62,11 +51,7 @@ function Assistant() {
   })
   const conversationsQueryError = conversationsErrorObj?.message ?? null
   const conversationsError = conversationsQueryError ?? createConversationError
-  // Same reasoning as Projects/Agents/Dashboard: once a load has failed,
-  // `error` stays set for the duration of a manual retry — only
-  // `isFetching` flips true — so this covers the retry-in-flight case the
-  // same way the original's `isLoadingConversations` (reset to true on
-  // every retry) did.
+  // After a failure, `isLoading` stays false during a retry; only `isFetching` flips.
   const isShowingConversationsLoadingState =
     isLoadingConversationsRaw || (Boolean(conversationsQueryError) && isFetchingConversations)
 
@@ -101,19 +86,13 @@ function Assistant() {
     if (conversationsErrorObj) return
     hasAutoSelectedRef.current = true
     if (conversations.length > 0) {
-      // One-time initial-data-driven state setup (see the `hasAutoSelectedRef`
-      // comment above), same category of exception as AuthProvider's
-      // restoreSession() and useCancellableLoad's initial load.
+      // One-time setup from loaded data, guarded by hasAutoSelectedRef.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveId(conversations[0].id)
     }
   }, [isFetchingConversations, conversationsErrorObj, conversations])
 
-  // Re-fetched (and swallowed on failure) after every send so the sidebar
-  // picks up e.g. a brand-new conversation's server-assigned title without
-  // ever surfacing an error for it — same as the original's
-  // `refreshConversationsSilently`, just writing into the cache instead of
-  // local state.
+  // Picks up server-assigned titles after a send; a failure here isn't worth an error.
   async function refreshConversationsSilently() {
     try {
       const data = await fetchConversations()
@@ -130,9 +109,7 @@ function Assistant() {
     },
   })
 
-  // Same non-optimistic shape as Projects/Agents: the cache only changes in
-  // onSuccess, after the server confirms the delete, so a failed request
-  // leaves the list exactly as it was and the error shows in the dialog.
+  // Not optimistic: a failed delete must leave the list untouched.
   const deleteConversationMutation = useMutation({
     mutationFn: (conversation) => deleteConversation(conversation.id),
     onSuccess: (_data, conversation) => {
@@ -140,8 +117,6 @@ function Assistant() {
         (prev ?? []).filter((c) => c.id !== conversation.id),
       )
       queryClient.removeQueries({ queryKey: messagesKey(conversation.id) })
-      // Deleting the open conversation moves to the most recent remaining
-      // one, or to the empty state (activeId null) when none are left.
       const remaining = queryClient.getQueryData(CONVERSATIONS_QUERY_KEY) ?? []
       setActiveId((current) => (current === conversation.id ? (remaining[0]?.id ?? null) : current))
     },
@@ -156,15 +131,10 @@ function Assistant() {
     confirm: handleConfirmDelete,
   } = useDeleteConfirmation(
     (conversation) => deleteConversationMutation.mutateAsync(conversation),
-    // The cache is already synced by the mutation's own onSuccess above —
-    // this hook's onDeleted only needs to exist to satisfy its signature.
+    // Nothing to do: onSuccess above already updated the cache.
     () => {},
   )
 
-  // The optimistic echo, the error-message-appended-on-failure, and moving
-  // to a server-assigned conversation id all pre-date this migration —
-  // preserved as-is, just operating on the query cache instead of local
-  // `messages` state.
   const sendMessageMutation = useMutation({
     mutationFn: ({ conversationId, text }) => sendChatMessage(conversationId, text),
     onMutate: async ({ conversationId, text }) => {
@@ -184,9 +154,7 @@ function Assistant() {
       ]
 
       if (variables.conversationId !== data.conversationId) {
-        // Sent with no conversation selected (or a superseded one) and the
-        // server created a new one for it — move the exchange to its real
-        // key and switch the view to it.
+        // The server created a new conversation, so move the exchange to its real key.
         queryClient.setQueryData(messagesKey(data.conversationId), settled)
         setActiveId(data.conversationId)
       } else {
@@ -230,9 +198,7 @@ function Assistant() {
   }
 
   function handleSend(text) {
-    // Fire-and-forget, same as before: neither ChatInput nor EmptyState
-    // await this — the optimistic echo, success, and failure states are
-    // all handled by the mutation's own onMutate/onSuccess/onError above.
+    // Not awaited: the mutation's callbacks handle success and failure.
     sendMessageMutation.mutate({ conversationId: activeId, text })
   }
 

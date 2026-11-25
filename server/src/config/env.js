@@ -111,9 +111,8 @@ export const env = {
   aiUsageCaps: {
     maxConversationsPerUser: intEnv('MAX_CONVERSATIONS_PER_USER', 5),
     maxAiMessagesPerUserPerDay: intEnv('MAX_AI_MESSAGES_PER_USER_PER_DAY', 30),
-    // Global kill switch across all users combined, in case the per-user
-    // caps above aren't enough to stop a burst of new signups from
-    // exhausting a free-tier provider key in one day.
+    // Global kill switch, because a burst of new signups could get past the
+    // per-user caps and run up a day's AI bill.
     maxAiCallsPerDay: intEnv('MAX_AI_CALLS_PER_DAY', 300),
   },
 }

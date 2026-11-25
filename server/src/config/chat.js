@@ -8,11 +8,8 @@ export const SYSTEM_PROMPT = `You are the AI assistant built into a project and 
 
 Keep responses concise and practical. You do not have access to the user's actual projects, agents, or data in this conversation, so never invent specific details about them — if asked something that depends on data you don't have, say so plainly instead of guessing. If a question falls outside project/task management (e.g. unrelated trivia, medical/legal/financial advice, or anything you're not confident about), say clearly that you're not sure or that it's outside what you can help with here, rather than making something up.`
 
-// Caps how many replies a single conversation can get from the real AI
-// provider — this app is a public demo running on a free-tier API key, so
-// an unbounded conversation is an unbounded cost/quota risk. Counts
-// assistant replies specifically (not total messages), since that's what
-// actually consumes the provider's quota.
+// A public demo on a paid API key: an unbounded conversation is unbounded cost.
+// Counts assistant replies, because those are what the provider bills.
 export const MAX_ASSISTANT_MESSAGES_PER_CONVERSATION = 10
 
 // Every request resends the history, so this bounds cost and tokens per call.
