@@ -140,4 +140,38 @@ describe('ChatMessage — HTML safety', () => {
 
     alertSpy.mockRestore()
   })
+
+  it('keeps GFM output sanitized: table cells, autolinks and footnote ids', async () => {
+    const content = [
+      '| Name | Link |',
+      '| --- | --- |',
+      '| evil | [open](javascript:window.__xss=1) |',
+      '| img | <img src="x" onerror="window.__xss=2"> |',
+      '',
+      'Bare text javascript:window.__xss=3 stays text.',
+      '',
+      'A claim.[^1]',
+      '',
+      '[^1]: The source.',
+    ].join('\n')
+
+    const { container } = render(<ChatMessage role="assistant" content={content} />)
+    await screen.findByRole('table')
+
+    const link = screen.getByText('open').closest('a')
+    expect(link?.getAttribute('href') ?? '').not.toMatch(/javascript:/i)
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('[onerror]')).toBeNull()
+
+    // GFM only autolinks http(s), www. and emails, so this never becomes a link.
+    expect(screen.queryByRole('link', { name: /javascript:/i })).toBeNull()
+
+    // Footnote ids get a prefix, so model text can't create an id like
+    // "root" that clashes with (clobbers) the app's own elements.
+    const ids = [...container.querySelectorAll('[id]')].map((el) => el.id)
+    expect(ids.length).toBeGreaterThan(0)
+    ids.forEach((id) => expect(id).toMatch(/^user-content-/))
+
+    expect(window.__xss).toBeUndefined()
+  })
 })
