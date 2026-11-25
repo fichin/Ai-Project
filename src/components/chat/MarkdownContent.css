@@ -89,3 +89,44 @@
   white-space: pre;
   word-break: normal;
 }
+
+/* Same idea as pre: a wide table scrolls inside the bubble on narrow screens. */
+.markdown-content .table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0 0 12px;
+}
+
+.markdown-content .table-scroll:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.markdown-content table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.markdown-content th,
+.markdown-content td {
+  padding: 6px 10px;
+  border: 1px solid var(--border-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-content th {
+  font-weight: 600;
+  background: var(--bg-surface);
+}
+
+/* GFM task lists: the checkbox replaces the bullet. */
+.markdown-content li:has(> input[type='checkbox']) {
+  list-style: none;
+  margin-left: -22px;
+}
+
+.markdown-content li > input[type='checkbox'] {
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+}

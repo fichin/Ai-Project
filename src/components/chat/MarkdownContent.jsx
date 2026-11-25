@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import rehypeSanitize from 'rehype-sanitize'
+import remarkGfm from 'remark-gfm'
 import './MarkdownContent.css'
 
 // Assistant replies are model output, so they're treated as untrusted:
@@ -10,18 +11,29 @@ import './MarkdownContent.css'
 // protocols (e.g. `javascript:` links).
 const REHYPE_PLUGINS = [rehypeSanitize]
 
+// Models answer in GitHub-flavoured Markdown (tables, ~~strike~~, task lists),
+// which plain CommonMark leaves as raw text.
+const REMARK_PLUGINS = [remarkGfm]
+
 const COMPONENTS = {
   a: ({ href, children }) => (
     <a href={href} target="_blank" rel="noopener noreferrer">
       {children}
     </a>
   ),
+  // Wide tables scroll inside their own box instead of stretching the bubble.
+  // Focusable so keyboard users can scroll it with the arrow keys.
+  table: ({ children }) => (
+    <div className="table-scroll" role="region" aria-label="Table" tabIndex={0}>
+      <table>{children}</table>
+    </div>
+  ),
 }
 
 function MarkdownContent({ children }) {
   return (
     <div className="markdown-content">
-      <ReactMarkdown rehypePlugins={REHYPE_PLUGINS} components={COMPONENTS}>
+      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={COMPONENTS}>
         {children}
       </ReactMarkdown>
     </div>

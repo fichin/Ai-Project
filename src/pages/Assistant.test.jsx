@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Assistant from './Assistant'
 import {
@@ -221,6 +221,34 @@ describe('Assistant — sending messages', () => {
     await waitFor(() => expect(screen.getByText('Hi there')).toBeInTheDocument())
     expect(screen.getByText('Hello')).toBeInTheDocument()
     expect(screen.queryByText('Explain what this platform can do')).not.toBeInTheDocument()
+  })
+
+  it('renders messages and the typing indicator inside a polite live log', async () => {
+    renderAssistant()
+    await waitFor(() =>
+      expect(fetchConversationMessages).toHaveBeenCalledWith(conversation.id, expect.anything()),
+    )
+    await waitFor(() => expect(screen.getByText('How can I help you today?')).toBeInTheDocument())
+
+    let resolveSend
+    sendChatMessage.mockImplementation(
+      () =>
+        new Promise((res) => {
+          resolveSend = res
+        }),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Explain what this platform can do/ }))
+
+    const log = await screen.findByRole('log', { name: 'Conversation' })
+    expect(log).toHaveAttribute('aria-live', 'polite')
+    expect(log).toHaveAttribute('aria-relevant', 'additions')
+    expect(within(log).getByRole('status')).toHaveTextContent('Assistant is typing…')
+
+    resolveSend({ userMessage: userMsg, assistantMessage: assistantMsg, conversationId: conversation.id })
+
+    await waitFor(() => expect(within(log).getByText('Hi there')).toBeInTheDocument())
+    expect(within(log).queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('keeps the optimistic message and appends an error message when sending fails', async () => {

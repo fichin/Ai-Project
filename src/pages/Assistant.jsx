@@ -289,7 +289,15 @@ function Assistant() {
         ) : messages.length === 0 ? (
           <EmptyState onSuggestionClick={handleSend} />
         ) : (
-          <div className="messages">
+          // A log region reads out new replies politely; "additions" stops it
+          // re-reading the whole chat when old messages re-render.
+          <div
+            className="messages"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions"
+            aria-label="Conversation"
+          >
             {messages.map((message) => (
               <ChatMessage
                 key={message.id}
