@@ -21,6 +21,13 @@ const COMPONENTS = {
       {children}
     </a>
   ),
+  // Wide tables scroll inside their own box instead of stretching the bubble.
+  // Focusable so keyboard users can scroll it with the arrow keys.
+  table: ({ children }) => (
+    <div className="table-scroll" role="region" aria-label="Table" tabIndex={0}>
+      <table>{children}</table>
+    </div>
+  ),
 }
 
 function MarkdownContent({ children }) {

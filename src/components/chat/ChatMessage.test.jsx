@@ -62,6 +62,13 @@ describe('ChatMessage — Markdown rendering', () => {
     expect(headers.map((th) => th.textContent)).toEqual(['Role', 'Company'])
     expect(within(table).getByRole('cell', { name: 'Acme' })).toBeInTheDocument()
 
+    // Wrapped in a labelled region that owns the horizontal scroll.
+    const scroller = screen.getByRole('region', { name: 'Table' })
+    expect(scroller).toHaveClass('table-scroll')
+    expect(scroller).toContainElement(table)
+    // In the Tab order, so keyboard users can reach it and scroll it.
+    expect(scroller).toHaveAttribute('tabindex', '0')
+
     expect(screen.getByText('old').tagName).toBe('DEL')
 
     const boxes = screen.getAllByRole('checkbox')
