@@ -5,13 +5,9 @@ const { Pool } = pg
 
 let pool = null
 
-// Matches SQLite's `datetime('now')` output format ("YYYY-MM-DD HH:MM:SS",
-// UTC) as a raw SQL fragment — migrated repositories interpolate this into
-// their queries instead of a native TIMESTAMPTZ, so formatRelativeTime.js
-// (which parses that exact string shape) keeps working unchanged. See
-// postgresSchema.js for the full rationale; this is the same expression
-// used there for column defaults, shared here for use in UPDATE/WHERE
-// clauses so it can't drift between files.
+// "YYYY-MM-DD HH:MM:SS" UTC, the TEXT format formatRelativeTime.js parses.
+// Same expression as the column defaults in postgresSchema.js, shared so
+// queries can't drift from it.
 export const NOW_UTC_SQL = `to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')`
 
 // SQLite's `datetime('now', '-N days')` computed a relative boundary
