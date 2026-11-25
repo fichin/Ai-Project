@@ -2,11 +2,16 @@
 
 [![CI](https://github.com/fichin/Ai-Project/actions/workflows/ci.yml/badge.svg)](https://github.com/fichin/Ai-Project/actions/workflows/ci.yml)
 
-A full-stack React + Express + Postgres workspace for managing AI projects
-and agents, with an AI assistant chat backed by Anthropic Claude.
+A full-stack React + Express + Postgres workspace for tracking projects and
+agents, with an AI assistant chat. In production the chat runs on Anthropic
+Claude.
 
 **Live demo:** [ai-project-phi-sand.vercel.app](https://ai-project-phi-sand.vercel.app)
 Demo login: `demo@example.com` / `Demo1234!` (pre-verified, no signup needed)
+
+> **The demo account is shared.** Everyone who logs in with it sees the same
+> projects, agents and chats, so don't type anything personal into it.
+> Sign up for your own account if you want private data.
 
 ![The AI assistant chat rendering a Markdown reply with a heading, bold text, a list, a link and a code block](docs/chat-desktop.png)
 
@@ -14,31 +19,56 @@ Demo login: `demo@example.com` / `Demo1234!` (pre-verified, no signup needed)
 > load after a period of inactivity can take 30-50 seconds while the
 > backend spins back up — subsequent requests are fast.
 >
-> The live demo has usage limits (conversations, AI messages, and a
-> shared daily cap) to keep it running sustainably on a free-tier AI
-> provider key; a message appears in the chat once the demo account hits
-> its daily limit.
+> The live demo has usage limits (open conversations, replies per
+> conversation, AI messages per user per day, and a global daily cap) to
+> bound the cost of the paid AI key; a message appears in the chat when a
+> limit is hit.
 
 ## Features
 
-- **AI assistant chat** — Anthropic Claude, with Groq as a free-tier
-  fallback and a mock provider when neither API key is set; per-agent
-  conversations with an optional per-agent persona
-- **Safe Markdown rendering** — assistant replies render headings, lists,
-  code blocks and links via `react-markdown`; raw HTML is never parsed and
-  output is sanitized with `rehype-sanitize`
-- **Rate limiting and usage caps** — IP- and email-keyed limiters on
+- **AI assistant chat**: Anthropic Claude when `ANTHROPIC_API_KEY` is set.
+  Groq is used only when that key is missing and `GROQ_API_KEY` is set, and
+  Groq takes over automatically if Anthropic is down or rate-limited. With
+  neither key, a mock provider answers, and the chat says it's simulated.
+- **Chat memory**: each request sends the earlier turns of the conversation,
+  trimmed to a character budget (`MAX_HISTORY_CHARS`) so cost per call stays
+  bounded. The user message and the AI reply are saved in one database
+  transaction, so a failure can't leave half a turn behind.
+- **Safe Markdown rendering**: replies render headings, lists, code blocks,
+  links and GitHub-flavoured Markdown (tables, strikethrough, task lists) via
+  `react-markdown` + `remark-gfm`. Raw HTML is never parsed and output is
+  sanitized with `rehype-sanitize`. Wide tables scroll inside the message.
+- **Screen reader support in the chat**: the message list is a polite live
+  region (`role="log"`), so new replies are read out, and the typing
+  indicator is announced as a status.
+- **Rate limiting and usage caps**: IP- and email-keyed limiters on
   login, signup and password reset, a per-user limiter on chat, plus
-  per-user and global AI usage caps (see [Security](#security))
-- **Tests + CI** — 198 frontend tests (Vitest + React Testing Library) and
-  backend tests on Node's test runner, run with lint and a production build
-  on every push and PR via GitHub Actions
+  per-user and global AI usage caps (see [Security](#security)).
+- **Monitoring**: a daily GitHub Actions check of the live demo opens an
+  `outage` issue when the backend or database is down, with a
+  [runbook](docs/runbook.md) for what to do.
+- **Tests + CI**: 210 frontend tests (Vitest + React Testing Library) and
+  48 backend tests (`node:test`), run with lint and a production build on
+  every push and PR via GitHub Actions.
 - Also: email/password auth with verification and password reset, a
   dashboard with an activity chart, project/agent CRUD with debounced
   search, notifications, an activity feed, user preferences (theme, accent,
   density, landing page), a Ctrl/Cmd+K command palette, and an
   accessibility pass (semantic HTML, keyboard navigation, ARIA labels,
-  WCAG AA contrast in both themes)
+  WCAG AA contrast in both themes).
+
+## Not built yet
+
+- **Agents don't do anything.** They are stored records (name, status,
+  project) you can create, edit, search and delete. They don't run tasks or
+  call the AI.
+- **Chats aren't tied to agents.** Every conversation is a general chat with
+  the same system prompt.
+- **The assistant can't see your data.** It has no access to your projects
+  or agents, and the system prompt tells it not to invent details about them.
+- **No database migrations yet.** The schema in
+  `server/src/db/postgresSchema.js` is reference SQL that was applied to the
+  database by hand; nothing in the app runs it.
 
 ## Tech stack
 
@@ -47,20 +77,25 @@ Demo login: `demo@example.com` / `Demo1234!` (pre-verified, no signup needed)
 - **Database:** PostgreSQL (Supabase)
 - **Email:** Resend (verification/reset links), with a console-log +
   local-outbox fallback for development
-- **AI:** Anthropic Claude, with Groq as a free-tier fallback provider and a
-  mock provider when neither API key is set — each agent can optionally
-  have its own persona, folded into the chat system prompt
+- **AI:** Anthropic Claude in production; Groq as fallback config and a mock
+  provider for local development
 - **Testing/CI:** Vitest, React Testing Library, `node:test`, GitHub Actions
-- **Design:** UI built with the help of an MCP integration with
-  [pen.dev](https://www.pen.dev/), wiring a design tool directly into the
-  agentic coding workflow
+- **Design:** UI designed with [pen.dev](https://www.pen.dev/) (via its MCP tool)
 
 ## Run locally
 
 Requires Node.js 22.12+ and a Postgres database (a free Supabase project
 works). No AI key is needed — without one, the chat uses the mock provider.
 
-**1. Backend** — copy `server/.env.example` to `server/.env`, set at least
+**1. Database** — the app doesn't create its tables yet (see
+[Not built yet](#not-built-yet)). Print the schema SQL and run it once in your
+database, for example in the Supabase SQL editor:
+```bash
+cd server
+node -e "import('./src/db/postgresSchema.js').then(m => console.log(m.POSTGRES_SCHEMA_SQL))" > schema.sql
+```
+
+**2. Backend** — copy `server/.env.example` to `server/.env`, set at least
 `DATABASE_URL`, then:
 ```bash
 cd server
@@ -68,7 +103,7 @@ npm install
 npm run dev           # http://localhost:4000
 ```
 
-**2. Frontend** (in a second terminal, from the repo root):
+**3. Frontend** (in a second terminal, from the repo root):
 ```bash
 npm install
 npm run dev          # http://localhost:5173
@@ -93,8 +128,8 @@ inline; the essentials:
 npm test
 ```
 
-198 tests (Vitest + React Testing Library) covering hooks, contexts, pages,
-and components.
+210 tests (Vitest + React Testing Library) covering hooks, contexts, pages,
+and components, including Markdown sanitizing and the chat's live regions.
 
 Backend tests use Node's built-in test runner:
 
@@ -102,8 +137,9 @@ Backend tests use Node's built-in test runner:
 cd server && npm test
 ```
 
-Covering the rate limiters (login/email throttling, IP-spoofing
-resistance, the demo-account exemption) and the `/health/db` route.
+48 tests covering the rate limiters (login/email throttling, IP-spoofing
+resistance, the demo-account exemption), the `/health/db` route, the chat
+service (quotas, history budget, transactional save) and the AI providers.
 
 ## Continuous integration
 
@@ -153,8 +189,10 @@ how fast or from how many apparent IPs a user or script hits the API.
 **AI output is treated as untrusted.** Assistant replies are rendered as
 Markdown without parsing raw HTML, then sanitized with `rehype-sanitize`
 (GitHub's allowlist schema), so a reply containing `<script>`, event-handler
-attributes or `javascript:` links can't execute — covered by a component
-test. Links open in a new tab with `rel="noopener noreferrer"`.
+attributes or `javascript:` links can't execute, including inside GFM tables.
+The sanitizer also prefixes footnote ids with `user-content-` so a reply
+can't clobber the app's own element ids. Covered by component tests. Links
+open in a new tab with `rel="noopener noreferrer"`.
 
 ## Architecture note: the Postgres migration
 
