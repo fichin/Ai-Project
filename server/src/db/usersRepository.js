@@ -1,4 +1,4 @@
-import { getPostgresPool, NOW_UTC_SQL } from './postgresClient.js'
+import { getPostgresPool } from './postgresClient.js'
 
 export async function getUserByEmail(email) {
   const { rows } = await getPostgresPool().query('SELECT * FROM users WHERE email = $1', [email])
@@ -22,7 +22,7 @@ export async function createUser({ email, name, passwordHash }) {
 
 export async function updateUserPassword(userId, passwordHash) {
   await getPostgresPool().query(
-    `UPDATE users SET password_hash = $1, updated_at = ${NOW_UTC_SQL} WHERE id = $2`,
+    `UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2`,
     [passwordHash, userId],
   )
 }
@@ -39,7 +39,7 @@ export async function updateUserProfile(userId, fields) {
   const avatarId = fields.avatarId !== undefined ? fields.avatarId : current.avatar_id
 
   await getPostgresPool().query(
-    `UPDATE users SET name = $1, avatar_id = $2, updated_at = ${NOW_UTC_SQL} WHERE id = $3`,
+    `UPDATE users SET name = $1, avatar_id = $2, updated_at = now() WHERE id = $3`,
     [name, avatarId, userId],
   )
 
@@ -47,5 +47,5 @@ export async function updateUserProfile(userId, fields) {
 }
 
 export async function markEmailVerified(userId) {
-  await getPostgresPool().query(`UPDATE users SET email_verified_at = ${NOW_UTC_SQL} WHERE id = $1`, [userId])
+  await getPostgresPool().query(`UPDATE users SET email_verified_at = now() WHERE id = $1`, [userId])
 }

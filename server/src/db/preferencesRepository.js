@@ -1,4 +1,4 @@
-import { getPostgresPool, NOW_UTC_SQL } from './postgresClient.js'
+import { getPostgresPool } from './postgresClient.js'
 import { DEFAULT_PREFERENCES } from '../config/preferences.js'
 
 // sidebar_collapsed/reduced_motion are real BOOLEAN columns in Postgres
@@ -32,7 +32,7 @@ export async function updatePreferencesForUser(userId, fields) {
   await getPostgresPool().query(
     `INSERT INTO user_preferences
        (user_id, theme, accent, density, sidebar_collapsed, default_landing_page, reduced_motion, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, ${NOW_UTC_SQL})
+     VALUES ($1, $2, $3, $4, $5, $6, $7, now())
      ON CONFLICT (user_id) DO UPDATE SET
        theme = excluded.theme,
        accent = excluded.accent,

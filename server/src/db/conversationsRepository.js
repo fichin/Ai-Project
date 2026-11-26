@@ -1,4 +1,4 @@
-import { getPostgresPool, NOW_UTC_SQL } from './postgresClient.js'
+import { getPostgresPool } from './postgresClient.js'
 
 // COUNT() is a bigint, which `pg` returns as a string; ::int keeps it a number.
 export async function listConversationsByUser(userId) {
@@ -48,9 +48,9 @@ export async function deleteConversation(id, userId) {
 }
 
 export async function touchConversation(id, db = getPostgresPool()) {
-  await db.query(`UPDATE conversations SET updated_at = ${NOW_UTC_SQL} WHERE id = $1`, [id])
+  await db.query(`UPDATE conversations SET updated_at = now() WHERE id = $1`, [id])
 }
 
 export async function setConversationTitle(id, title, db = getPostgresPool()) {
-  await db.query(`UPDATE conversations SET title = $1, updated_at = ${NOW_UTC_SQL} WHERE id = $2`, [title, id])
+  await db.query(`UPDATE conversations SET title = $1, updated_at = now() WHERE id = $2`, [title, id])
 }

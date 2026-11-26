@@ -14,7 +14,7 @@ import {
   createMessage,
   listMessagesByConversation,
 } from '../db/messagesRepository.js'
-import { utcTextDaysAgo, withTransaction } from '../db/postgresClient.js'
+import { daysAgo, withTransaction } from '../db/postgresClient.js'
 import { buildModelMessages } from './chatHistory.js'
 import { titleFromMessage } from '../utils/titleFromMessage.js'
 import { env } from '../config/env.js'
@@ -122,7 +122,7 @@ export async function sendChatMessage({ conversationId, message, userId }, deps 
     await assertUnderConversationLimit(userId, deps.countConversationsByUser)
   }
 
-  const since = utcTextDaysAgo(1)
+  const since = daysAgo(1)
   if ((await deps.countAssistantMessagesSince(since)) >= env.aiUsageCaps.maxAiCallsPerDay) {
     throw new GlobalAiQuotaError()
   }

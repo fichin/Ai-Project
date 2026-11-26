@@ -1,4 +1,4 @@
-import { getPostgresPool, NOW_UTC_SQL } from './postgresClient.js'
+import { getPostgresPool } from './postgresClient.js'
 import { generateToken, hashToken } from '../utils/tokens.js'
 import { EMAIL_VERIFICATION_TTL_HOURS } from '../config/auth.js'
 
@@ -8,7 +8,7 @@ export async function createVerificationToken(userId) {
 
   await getPostgresPool().query(
     `INSERT INTO email_verification_tokens (id, user_id, expires_at)
-     VALUES ($1, $2, to_char((NOW() + make_interval(hours => $3)) AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS'))`,
+     VALUES ($1, $2, now() + make_interval(hours => $3))`,
     [tokenHash, userId, EMAIL_VERIFICATION_TTL_HOURS],
   )
 
@@ -27,7 +27,7 @@ export async function consumeVerificationToken(token) {
   const pool = getPostgresPool()
 
   const { rows } = await pool.query(
-    `DELETE FROM email_verification_tokens WHERE id = $1 AND expires_at > ${NOW_UTC_SQL} RETURNING user_id`,
+    `DELETE FROM email_verification_tokens WHERE id = $1 AND expires_at > now() RETURNING user_id`,
     [tokenHash],
   )
 
