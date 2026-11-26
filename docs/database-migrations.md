@@ -25,6 +25,30 @@ Run from `server/`. Every command first prints the target database.
 
 A new local database only needs `npm run migrate -- --yes`.
 
+`--check` compares columns (type, nullability, default), constraints and
+indexes with what the applied migrations should have produced.
+
+Tests run on PGlite, which is a newer Postgres major version than Supabase.
+The dry run on the real database is what proves a migration works there.
+
+## When `--check` reports drift
+
+Drift means the database was changed outside the migrations, usually by hand
+or by local code pointed at it. Don't baseline or migrate until it's explained.
+
+1. Find the cause: search git history (`git log --all -S <name>`) and ask who
+   changed what.
+2. Decide what the repo should say:
+   - If the migration that should contain the change **has been applied
+     nowhere** (the case for 0001 before production is baselined), update it
+     so it matches reality.
+   - Otherwise, add a new migration. Applied migrations are never edited.
+3. Run `--check` again until it says the schema matches.
+
+**2026-11-26:** the first production check found `agents.persona text`, added
+by hand for the unmerged `wip/agent-persona` branch (one row has a value).
+0001 was updated to include it before production was baselined.
+
 ## One-time: move production onto migrations (PR 5)
 
 Production was built by hand from `0001_baseline.sql` and stores timestamps as
