@@ -47,8 +47,15 @@ Demo login: `demo@example.com` / `Demo1234!` (pre-verified, no signup needed)
 - **Monitoring**: a daily GitHub Actions check of the live demo opens an
   `outage` issue when the backend or database is down, with a
   [runbook](docs/runbook.md) for what to do.
-- **Tests + CI**: 210 frontend tests (Vitest + React Testing Library) and
-  48 backend tests (`node:test`), run with lint and a production build on
+- **Database migrations**: numbered SQL files in `server/migrations/`,
+  tracked in a `schema_migrations` table with checksums, so each runs once.
+  All pending migrations run in one transaction, behind a lock. The runner
+  has read-only `--check`, a rolled-back `--dry-run`, and `--baseline` for a
+  database that was built by hand (see
+  [docs/database-migrations.md](docs/database-migrations.md)). Timestamps
+  are `timestamptz`.
+- **Tests + CI**: 215 frontend tests (Vitest + React Testing Library) and
+  80 backend tests (`node:test`), run with lint and a production build on
   every push and PR via GitHub Actions.
 - Also: email/password auth with verification and password reset, a
   dashboard with an activity chart, project/agent CRUD with debounced
@@ -66,9 +73,6 @@ Demo login: `demo@example.com` / `Demo1234!` (pre-verified, no signup needed)
   the same system prompt.
 - **The assistant can't see your data.** It has no access to your projects
   or agents, and the system prompt tells it not to invent details about them.
-- **No database migrations yet.** The schema in
-  `server/src/db/postgresSchema.js` is reference SQL that was applied to the
-  database by hand; nothing in the app runs it.
 
 ## Tech stack
 
@@ -87,23 +91,18 @@ Demo login: `demo@example.com` / `Demo1234!` (pre-verified, no signup needed)
 Requires Node.js 22.12+ and a Postgres database (a free Supabase project
 works). No AI key is needed — without one, the chat uses the mock provider.
 
-**1. Database** — the app doesn't create its tables yet (see
-[Not built yet](#not-built-yet)). Print the schema SQL and run it once in your
-database, for example in the Supabase SQL editor:
-```bash
-cd server
-node -e "import('./src/db/postgresSchema.js').then(m => console.log(m.POSTGRES_SCHEMA_SQL))" > schema.sql
-```
-
-**2. Backend** — copy `server/.env.example` to `server/.env`, set at least
-`DATABASE_URL`, then:
+**1. Backend** — copy `server/.env.example` to `server/.env`, set at least
+`DATABASE_URL` to an empty database, then:
 ```bash
 cd server
 npm install
-npm run dev           # http://localhost:4000
+npm run migrate -- --yes   # creates every table; safe to re-run
+npm run dev                # http://localhost:4000
 ```
+`npm run migrate` prints the target database first and changes nothing
+without `--yes`, so check it isn't pointing at production.
 
-**3. Frontend** (in a second terminal, from the repo root):
+**2. Frontend** (in a second terminal, from the repo root):
 ```bash
 npm install
 npm run dev          # http://localhost:5173
@@ -128,7 +127,7 @@ inline; the essentials:
 npm test
 ```
 
-210 tests (Vitest + React Testing Library) covering hooks, contexts, pages,
+215 tests (Vitest + React Testing Library) covering hooks, contexts, pages,
 and components, including Markdown sanitizing and the chat's live regions.
 
 Backend tests use Node's built-in test runner:
@@ -137,9 +136,13 @@ Backend tests use Node's built-in test runner:
 cd server && npm test
 ```
 
-48 tests covering the rate limiters (login/email throttling, IP-spoofing
+80 tests covering the rate limiters (login/email throttling, IP-spoofing
 resistance, the demo-account exemption), the `/health/db` route, the chat
-service (quotas, history budget, transactional save) and the AI providers.
+service (quotas, history budget, transactional save), the AI providers, and
+the database: the migration runner, the TEXT-to-timestamptz conversion,
+rollback files, and every changed repository query. Database tests run on
+[PGlite](https://pglite.dev/) (real Postgres in memory), so they need no
+database server, locally or in CI.
 
 ## Continuous integration
 
@@ -205,7 +208,9 @@ changes. Data-fetching on the frontend followed the same incremental
 approach, moving page-by-page from hand-rolled `useEffect`/`useState`
 fetching to TanStack Query, which also brought in cache invalidation,
 optimistic updates, and request de-duplication without a big-bang
-rewrite. The one piece intentionally left on SQLite is the local
+rewrite. Since then the schema has moved from SQL pasted in by hand to
+migrations, and timestamps from SQLite-style TEXT to `timestamptz`. The one
+piece intentionally left on SQLite is the local
 development email outbox (`server/data/dev-outbox.db`) — a throwaway
 convenience for reading back verification/reset links locally, not part
 of the app's real data.

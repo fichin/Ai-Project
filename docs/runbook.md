@@ -5,6 +5,8 @@ The daily [Keepalive workflow](../.github/workflows/keepalive.yml) runs
 opens a GitHub issue labelled `outage`, or comments on the one already open.
 The first green run after that closes the issue.
 
+Changing the database schema has its own guide: [database-migrations.md](database-migrations.md).
+
 ## First check (1 minute)
 
 Open these two URLs in a browser. The first request after idle can take

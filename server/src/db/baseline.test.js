@@ -1,6 +1,7 @@
 import { test, before, after, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { PGlite } from '@electric-sql/pglite'
+import { readFile } from 'node:fs/promises'
 import { baseline, compareSchemas, describeSchema, expectedSchemaFor, loadMigrations, migrate } from './migrator.js'
 
 const EXPECTED_TABLES = [
@@ -91,4 +92,20 @@ test('schema drift on a hand-built database is detected before baselining', asyn
   const drift = compareSchemas(await expectedSchemaFor(all.slice(0, 1)), await describeSchema(db))
 
   assert.deepEqual(drift.missing, ['users.avatar_id text'])
+})
+
+test('the documented rollback (both down files, newest first) returns to exactly 0001', async () => {
+  await migrate(db, all)
+  const down = (name) => readFile(new URL(`../../migrations/down/${name}`, import.meta.url), 'utf8')
+
+  await db.exec(`BEGIN;
+    ${await down('0003_drop_dev_outbox_emails.down.sql')}
+    ${await down('0002_timestamptz.down.sql')}
+    DELETE FROM schema_migrations WHERE name IN ('0002_timestamptz.sql', '0003_drop_dev_outbox_emails.sql');
+    COMMIT;`)
+
+  const drift = compareSchemas(await expectedSchemaFor(all.slice(0, 1)), await describeSchema(db))
+  assert.deepEqual(drift, { missing: [], unexpected: [] })
+  const { rows } = await db.query('SELECT name FROM schema_migrations')
+  assert.deepEqual(rows, [{ name: '0001_baseline.sql' }])
 })
