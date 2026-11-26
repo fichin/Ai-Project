@@ -1,8 +1,6 @@
-// Timestamps are TEXT in "YYYY-MM-DD HH:MM:SS" UTC, not TIMESTAMPTZ, because
-// formatRelativeTime.js parses that exact format on the frontend.
-const UTC_TIMESTAMP_DEFAULT = `to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')`
+-- The schema production was created from by hand (formerly db/postgresSchema.js).
+-- Already applied migrations are never edited: change the schema in a new file.
 
-export const POSTGRES_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
@@ -10,14 +8,14 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT,
   email_verified_at TEXT,
   avatar_id TEXT,
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
-  updated_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT})
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
+  updated_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS'))
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   expires_at TEXT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
@@ -26,7 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id);
 CREATE TABLE IF NOT EXISTS email_verification_tokens (
   id TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   expires_at TEXT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
@@ -35,7 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user_id ON email_verifi
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   expires_at TEXT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
@@ -48,7 +46,7 @@ CREATE TABLE IF NOT EXISTS dev_outbox_emails (
   to_email TEXT NOT NULL,
   subject TEXT NOT NULL,
   body TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT})
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS'))
 );
 CREATE INDEX IF NOT EXISTS idx_dev_outbox_emails_to_email ON dev_outbox_emails (to_email);
 
@@ -58,8 +56,8 @@ CREATE TABLE IF NOT EXISTS projects (
   name TEXT NOT NULL,
   description TEXT,
   status TEXT NOT NULL DEFAULT 'planning' CHECK (status IN ('active', 'planning', 'completed', 'archived')),
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
-  updated_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
+  updated_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects (user_id);
@@ -71,8 +69,11 @@ CREATE TABLE IF NOT EXISTS agents (
   name TEXT NOT NULL,
   description TEXT,
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('active', 'paused', 'draft')),
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
-  updated_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
+  -- Added to production by hand for the unmerged wip/agent-persona branch.
+  -- No code reads it yet; one production row has a value.
+  persona TEXT,
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
+  updated_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
   FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE SET NULL
 );
@@ -84,8 +85,8 @@ CREATE TABLE IF NOT EXISTS conversations (
   user_id INTEGER NOT NULL,
   agent_id INTEGER,
   title TEXT NOT NULL DEFAULT 'New conversation',
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
-  updated_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
+  updated_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
   FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE SET NULL
 );
@@ -97,7 +98,7 @@ CREATE TABLE IF NOT EXISTS messages (
   conversation_id INTEGER NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
   content TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages (conversation_id);
@@ -115,7 +116,7 @@ CREATE TABLE IF NOT EXISTS activity_events (
   entity_type TEXT,
   entity_id INTEGER,
   entity_name TEXT,
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_activity_events_user_id ON activity_events (user_id);
@@ -133,7 +134,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   entity_id INTEGER,
   entity_name TEXT,
   read_at TEXT,
-  created_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
+  created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id);
@@ -148,7 +149,6 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   sidebar_collapsed BOOLEAN NOT NULL DEFAULT false,
   default_landing_page TEXT NOT NULL DEFAULT '/dashboard',
   reduced_motion BOOLEAN NOT NULL DEFAULT false,
-  updated_at TEXT NOT NULL DEFAULT (${UTC_TIMESTAMP_DEFAULT}),
+  updated_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
-`

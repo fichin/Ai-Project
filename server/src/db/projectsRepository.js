@@ -1,4 +1,4 @@
-import { getPostgresPool, NOW_UTC_SQL } from './postgresClient.js'
+import { getPostgresPool } from './postgresClient.js'
 
 export const ALLOWED_STATUSES = ['active', 'planning', 'completed', 'archived']
 
@@ -53,7 +53,7 @@ export async function updateProject(id, userId, fields) {
 
   await getPostgresPool().query(
     `UPDATE projects
-     SET name = $1, description = $2, status = $3, updated_at = ${NOW_UTC_SQL}
+     SET name = $1, description = $2, status = $3, updated_at = now()
      WHERE id = $4 AND user_id = $5`,
     [name, description, status, id, userId],
   )

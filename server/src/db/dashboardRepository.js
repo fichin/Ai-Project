@@ -1,4 +1,4 @@
-import { getPostgresPool, utcTextDaysAgo } from './postgresClient.js'
+import { getPostgresPool, daysAgo } from './postgresClient.js'
 
 function normalizeTrend(row) {
   const total = row.total ?? 0
@@ -17,8 +17,8 @@ function normalizeTrend(row) {
 // SUM over zero rows is NULL, hence the `?? 0` fallbacks.
 export async function getStatsForUser(userId) {
   const pool = getPostgresPool()
-  const sevenDaysAgo = utcTextDaysAgo(7)
-  const fourteenDaysAgo = utcTextDaysAgo(14)
+  const sevenDaysAgo = daysAgo(7)
+  const fourteenDaysAgo = daysAgo(14)
 
   const {
     rows: [conversationRow],
@@ -72,12 +72,11 @@ export async function getStatsForUser(userId) {
 // always renders a continuous series even on days with no activity.
 export async function getUsageSeries(userId, days = 14) {
   const pool = getPostgresPool()
-  const boundary = utcTextDaysAgo(days - 1)
+  const boundary = daysAgo(days - 1)
 
-  // created_at is fixed-width TEXT ("YYYY-MM-DD HH:MM:SS"), so its first 10
-  // characters are the date.
+  // Grouped by the UTC day, to match the UTC day keys built below.
   const { rows } = await pool.query(
-    `SELECT LEFT(m.created_at, 10) AS day, COUNT(*)::int AS count
+    `SELECT to_char(m.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, COUNT(*)::int AS count
      FROM messages m
      JOIN conversations c ON c.id = m.conversation_id
      WHERE c.user_id = $1 AND m.created_at >= $2

@@ -1,15 +1,10 @@
-// SQLite's datetime('now') returns UTC timestamps like "2026-09-08 14:06:39"
-// (no offset). Treat them explicitly as UTC to avoid local-timezone drift.
-function toUtcDate(sqliteTimestamp) {
-  return new Date(`${sqliteTimestamp.replace(' ', 'T')}Z`)
-}
-
 function pluralize(value, unit) {
   return `${value} ${unit}${value === 1 ? '' : 's'} ago`
 }
 
-export function formatRelativeTime(sqliteTimestamp) {
-  const diffMs = Date.now() - toUtcDate(sqliteTimestamp).getTime()
+// Takes the Date that pg returns for a timestamptz column.
+export function formatRelativeTime(date) {
+  const diffMs = Date.now() - date.getTime()
   const diffSec = Math.round(diffMs / 1000)
 
   if (diffSec < 60) return 'Just now'

@@ -5,22 +5,9 @@ const { Pool } = pg
 
 let pool = null
 
-// "YYYY-MM-DD HH:MM:SS" UTC, the TEXT format formatRelativeTime.js parses.
-// Same expression as the column defaults in postgresSchema.js, shared so
-// queries can't drift from it.
-export const NOW_UTC_SQL = `to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')`
-
-// SQLite's `datetime('now', '-N days')` computed a relative boundary
-// server-side; Postgres has no single drop-in equivalent for an
-// arbitrary/dynamic offset embedded in a query. Rather than building
-// parameterized interval SQL fragments (fragile to get right across
-// multiple call sites in one query), the boundary is computed here in JS,
-// in the exact same UTC text format as every stored timestamp, and passed
-// as a plain bound parameter — e.g. `created_at >= $2` with
-// `utcTextDaysAgo(7)` as $2. Used by dashboardRepository.js's trend/usage
-// queries.
-export function utcTextDaysAgo(days = 0) {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ')
+// pg sends a JS Date as an exact instant, so timestamptz comparisons need no formatting.
+export function daysAgo(days) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 }
 
 // The app's one real database connection — every db/*Repository.js file
@@ -58,6 +45,11 @@ export async function withTransaction(fn, pool = getPostgresPool()) {
     // Without this, every failed transaction leaks a connection until the pool hangs.
     client.release()
   }
+}
+
+// Lets repository tests run real SQL against an in-memory database.
+export function setPostgresPoolForTests(testPool) {
+  pool = testPool
 }
 
 export async function closePostgresPool() {

@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto'
-import { getPostgresPool, NOW_UTC_SQL } from './postgresClient.js'
+import { getPostgresPool } from './postgresClient.js'
 import { SESSION_TTL_DAYS } from '../config/auth.js'
 
 function hashToken(token) {
@@ -14,7 +14,7 @@ export async function createSession(userId) {
 
   await getPostgresPool().query(
     `INSERT INTO sessions (id, user_id, expires_at)
-     VALUES ($1, $2, to_char((NOW() + make_interval(days => $3)) AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS'))`,
+     VALUES ($1, $2, now() + make_interval(days => $3))`,
     [tokenHash, userId, SESSION_TTL_DAYS],
   )
 
@@ -31,7 +31,7 @@ export async function getSessionUser(token) {
     `SELECT u.id, u.email, u.name, u.email_verified_at, u.avatar_id
      FROM sessions s
      JOIN users u ON u.id = s.user_id
-     WHERE s.id = $1 AND s.expires_at > ${NOW_UTC_SQL}`,
+     WHERE s.id = $1 AND s.expires_at > now()`,
     [tokenHash],
   )
   return rows[0] ?? null
