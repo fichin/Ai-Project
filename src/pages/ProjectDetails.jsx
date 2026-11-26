@@ -10,6 +10,7 @@ import { nextStatus } from '../components/agents/agentsData'
 import { STATUS_LABELS } from '../components/projects/projectsData'
 import { fetchProject, updateProjectRequest, deleteProjectRequest } from '../components/projects/projectsApi'
 import { fetchAgents, createAgentRequest, updateAgentRequest, deleteAgentRequest } from '../components/agents/agentsApi'
+import { formatDate } from '../lib/formatDate'
 import './ProjectDetails.css'
 
 // The list key Projects.jsx and Agents.jsx already read/write — reusing it
@@ -21,12 +22,6 @@ const AGENTS_QUERY_KEY = ['agents']
 
 // SQLite's datetime('now') returns UTC timestamps like "2026-09-08 14:06:39"
 // (no offset) — same convention already relied on server-side.
-function formatDate(value) {
-  if (!value) return null
-  const date = new Date(`${value.replace(' ', 'T')}Z`)
-  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-}
-
 function ProjectDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
