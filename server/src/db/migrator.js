@@ -141,14 +141,37 @@ export async function baseline(db, migrations, name = '0001_baseline.sql') {
   }
 }
 
-// One line per column, so two databases can be compared line by line.
+// One line per column, constraint and index, so two databases can be compared
+// line by line. Columns alone missed hand-made changes such as an extra index.
 export async function describeSchema(db) {
-  const { rows } = await db.query(`
-    SELECT table_name, column_name, data_type, is_nullable
+  const columns = await db.query(`
+    SELECT table_name, column_name, data_type, is_nullable, column_default
     FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name <> 'schema_migrations'
-    ORDER BY table_name, column_name`)
-  return rows.map((r) => `${r.table_name}.${r.column_name} ${r.data_type}${r.is_nullable === 'NO' ? ' not null' : ''}`)
+    WHERE table_schema = 'public' AND table_name <> 'schema_migrations'`)
+  const constraints = await db.query(`
+    SELECT rel.relname AS table_name, con.conname AS name, pg_get_constraintdef(con.oid) AS definition
+    FROM pg_constraint con
+    JOIN pg_class rel ON rel.oid = con.conrelid
+    JOIN pg_namespace ns ON ns.oid = rel.relnamespace
+    WHERE ns.nspname = 'public' AND rel.relname <> 'schema_migrations'
+      -- Postgres 18+ also lists NOT NULL here; older versions don't, and the
+      -- column lines already carry it, so leave it out to compare across versions.
+      AND con.contype <> 'n'`)
+  const indexes = await db.query(`
+    SELECT tablename AS table_name, indexname AS name, indexdef AS definition
+    FROM pg_indexes
+    WHERE schemaname = 'public' AND tablename <> 'schema_migrations'`)
+
+  return [
+    ...columns.rows.map(
+      (r) =>
+        `${r.table_name}.${r.column_name} ${r.data_type}` +
+        `${r.is_nullable === 'NO' ? ' not null' : ''}` +
+        `${r.column_default === null ? '' : ` default ${r.column_default}`}`,
+    ),
+    ...constraints.rows.map((r) => `constraint ${r.table_name}.${r.name} ${r.definition}`),
+    ...indexes.rows.map((r) => `index ${r.table_name}.${r.name} ${r.definition}`),
+  ].sort()
 }
 
 export function compareSchemas(expected, actual) {

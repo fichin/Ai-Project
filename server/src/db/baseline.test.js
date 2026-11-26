@@ -109,3 +109,28 @@ test('the documented rollback (both down files, newest first) returns to exactly
   const { rows } = await db.query('SELECT name FROM schema_migrations')
   assert.deepEqual(rows, [{ name: '0001_baseline.sql' }])
 })
+
+test('drift check also sees a hand-added index and a changed default', async () => {
+  await db.exec(baselineSql)
+  await db.exec(`CREATE INDEX idx_hand_made ON messages (role);
+                 ALTER TABLE agents ALTER COLUMN status SET DEFAULT 'active';`)
+
+  const drift = compareSchemas(await expectedSchemaFor(all.slice(0, 1)), await describeSchema(db))
+
+  assert.deepEqual(drift.unexpected, [
+    "agents.status text not null default 'active'::text",
+    'index messages.idx_hand_made CREATE INDEX idx_hand_made ON public.messages USING btree (role)',
+  ])
+  assert.deepEqual(drift.missing, ["agents.status text not null default 'draft'::text"])
+})
+
+test('production as it really is (persona added later by hand) matches the new 0001', async () => {
+  const withoutPersona = baselineSql.replace(/\n\s*persona TEXT,/, '')
+  assert.notEqual(withoutPersona, baselineSql)
+  await db.exec(withoutPersona)
+  await db.exec('ALTER TABLE agents ADD COLUMN persona TEXT')
+
+  const drift = compareSchemas(await expectedSchemaFor(all.slice(0, 1)), await describeSchema(db))
+
+  assert.deepEqual(drift, { missing: [], unexpected: [] })
+})

@@ -36,6 +36,8 @@ before(async () => {
   await db.exec(baseline.sql)
   await db.exec(`INSERT INTO users (email, name, created_at, updated_at)
                  VALUES ('ada@example.com', 'Ada', '2026-11-26 10:00:00', '2026-11-26 10:00:00')`)
+  // Like production: one agent has a persona from the unmerged WIP branch.
+  await db.exec(`INSERT INTO agents (user_id, name, persona) VALUES (1, 'Helper', 'Be brief.')`)
   server = new PGLiteSocketServer({ db, port, host: '127.0.0.1' })
   await server.start()
 })
@@ -56,6 +58,7 @@ test('check, baseline, dry run, migrate, check again', async () => {
   const dryRun = await cli('--dry-run')
   assert.match(dryRun, /Dry run, rolled back\. Would apply: 0002_timestamptz\.sql, 0003_drop_dev_outbox_emails\.sql/)
   assert.match(dryRun, /users: 1 -> 1\n/)
+  assert.match(dryRun, /agents: 1 -> 1\n/)
   assert.match(dryRun, /dev_outbox_emails: 0 -> dropped/)
   assert.doesNotMatch(dryRun, /CHANGED/)
   assert.equal(await columnType('users', 'created_at'), 'text', 'the dry run left the database untouched')
@@ -64,6 +67,8 @@ test('check, baseline, dry run, migrate, check again', async () => {
   assert.equal(await columnType('users', 'created_at'), 'timestamp with time zone')
   const { rows } = await db.query('SELECT created_at FROM users')
   assert.equal(rows[0].created_at.toISOString(), '2026-11-26T10:00:00.000Z')
+  const agents = await db.query('SELECT persona FROM agents')
+  assert.deepEqual(agents.rows, [{ persona: 'Be brief.' }], 'the persona value survived')
 
   const lastCheck = await cli('--check')
   assert.match(lastCheck, /Pending: none/)

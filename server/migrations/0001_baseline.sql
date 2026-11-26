@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS agents (
   name TEXT NOT NULL,
   description TEXT,
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('active', 'paused', 'draft')),
+  -- Added to production by hand for the unmerged wip/agent-persona branch.
+  -- No code reads it yet; one production row has a value.
+  persona TEXT,
   created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   updated_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')),
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
