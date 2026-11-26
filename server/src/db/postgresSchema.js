@@ -1,35 +1,5 @@
-// The app's schema, applied to Postgres/Supabase — see postgresClient.js
-// for the connection every repository queries through.
-//
-// This was translated from the project's original SQLite schema over the
-// course of the migration; kept here for reference, the translations
-// applied were:
-//  - `INTEGER PRIMARY KEY AUTOINCREMENT` -> `INTEGER GENERATED ALWAYS AS
-//    IDENTITY PRIMARY KEY` (the modern Postgres identity-column syntax;
-//    nothing in the app ever inserts an explicit id, so ALWAYS rather than
-//    BY DEFAULT is fine).
-//  - `INTEGER ... CHECK (col IN (0, 1))` boolean flags (user_preferences'
-//    sidebar_collapsed/reduced_motion) -> real `BOOLEAN` columns.
-//  - Timestamp columns stay `TEXT`, not `TIMESTAMPTZ` — formatRelativeTime.js
-//    parses a SQLite-style "YYYY-MM-DD HH:MM:SS" UTC string directly
-//    (`sqliteTimestamp.replace(' ', 'T')`) and would break on a raw JS
-//    Date object. `to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')`
-//    reproduces SQLite's `datetime('now')` format exactly.
-//  - `PRAGMA` statements (foreign_keys, journal_mode) are SQLite-only and
-//    have no Postgres equivalent needed — FK enforcement is always on, and
-//    Postgres has its own WAL.
-//  - The interval-arithmetic syntax adjustment (`datetime('now', '+N
-//    days')` -> `NOW() + make_interval(days => N)`) doesn't appear here —
-//    it's used in repository query code (sessionsRepository.js,
-//    emailVerificationRepository.js, passwordResetRepository.js), not in
-//    any table default, so there was nothing to translate in the DDL
-//    itself.
-//  - The old SQLite file had retrofit/backfill functions
-//    (ensureUsersPasswordColumn, ensureUsersEmailVerifiedColumn,
-//    ensureUsersAvatarColumn, ensureDevUserPassword) that patched an
-//    existing local database file predating certain columns. A fresh
-//    schema applied to a new Supabase database never needed them, so
-//    they were dropped rather than translated.
+// Timestamps are TEXT in "YYYY-MM-DD HH:MM:SS" UTC, not TIMESTAMPTZ, because
+// formatRelativeTime.js parses that exact format on the frontend.
 const UTC_TIMESTAMP_DEFAULT = `to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')`
 
 export const POSTGRES_SCHEMA_SQL = `
@@ -71,9 +41,8 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens (user_id);
 
--- Local development only: a stand-in "inbox" so verification/reset emails
--- can be inspected without a real mail provider. Never written to in
--- production (see services/mail).
+-- Unused: the dev email outbox lives in SQLite (db/devOutboxDb.js).
+-- Left in place until migrations (PR 5) can drop it safely.
 CREATE TABLE IF NOT EXISTS dev_outbox_emails (
   id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   to_email TEXT NOT NULL,
@@ -133,11 +102,8 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages (conversation_id);
 
--- Real, granular activity log (distinct from the derived timestamp-based
--- feed dashboardRepository used before) — this is the only way to show
--- deletions, since a deleted project/agent row no longer exists to derive
--- an entry from. entity_name is a snapshot at event time so entries stay
--- readable after the entity itself is gone.
+-- An event log, because a deleted row can't be shown in a feed derived from
+-- the rows themselves. entity_name is a snapshot so entries outlive the entity.
 CREATE TABLE IF NOT EXISTS activity_events (
   id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id INTEGER NOT NULL,
@@ -154,10 +120,8 @@ CREATE TABLE IF NOT EXISTS activity_events (
 );
 CREATE INDEX IF NOT EXISTS idx_activity_events_user_id ON activity_events (user_id);
 
--- Items requiring the user's attention (distinct from activity_events, which
--- is a full history log). read_at is NULL until the user opens/dismisses it;
--- entity_name is a snapshot at event time so entries stay readable after the
--- entity itself is deleted.
+-- Unlike activity_events (full history), these need attention; read_at stays
+-- NULL until dismissed.
 CREATE TABLE IF NOT EXISTS notifications (
   id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id INTEGER NOT NULL,
@@ -175,9 +139,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications (user_id, read_at);
 
--- One row per user (created lazily on first write); absence of a row just
--- means "still on defaults", so reads always fall back to DEFAULT_PREFERENCES
--- rather than requiring a row to exist upfront.
+-- Created lazily on first write; no row means "still on defaults".
 CREATE TABLE IF NOT EXISTS user_preferences (
   user_id INTEGER PRIMARY KEY,
   theme TEXT NOT NULL DEFAULT 'system' CHECK (theme IN ('dark', 'light', 'system')),

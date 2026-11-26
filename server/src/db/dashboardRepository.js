@@ -13,12 +13,8 @@ function normalizeTrend(row) {
   return { total, last7Days, trendPct }
 }
 
-// SUM(CASE WHEN ... THEN 1 ELSE 0 END) is a bigint in Postgres too (same as
-// COUNT), returned as a string by `pg` by default — every aggregate below
-// is cast to ::int. SUM over zero matching rows is SQL NULL (true in both
-// SQLite and Postgres), which the `row.last7 ?? 0` fallbacks below already
-// handled before this migration and still do — casting NULL::int is still
-// NULL, so that fallback keeps working unchanged.
+// Aggregates are bigint, which `pg` returns as strings, so they're cast to ::int.
+// SUM over zero rows is NULL, hence the `?? 0` fallbacks.
 export async function getStatsForUser(userId) {
   const pool = getPostgresPool()
   const sevenDaysAgo = utcTextDaysAgo(7)
@@ -78,10 +74,8 @@ export async function getUsageSeries(userId, days = 14) {
   const pool = getPostgresPool()
   const boundary = utcTextDaysAgo(days - 1)
 
-  // created_at is TEXT ("YYYY-MM-DD HH:MM:SS"), not a native timestamp, so
-  // SQLite's date() (which parses and reformats it) doesn't apply — the
-  // first 10 characters of that fixed-width format are always the date
-  // portion, so a plain substring reproduces it without any parsing at all.
+  // created_at is fixed-width TEXT ("YYYY-MM-DD HH:MM:SS"), so its first 10
+  // characters are the date.
   const { rows } = await pool.query(
     `SELECT LEFT(m.created_at, 10) AS day, COUNT(*)::int AS count
      FROM messages m
@@ -104,13 +98,9 @@ export async function getUsageSeries(userId, days = 14) {
 }
 
 export async function getAgentActivity(userId, limit = 6) {
-  // GROUP BY a.id alone (as SQLite allowed) isn't valid in Postgres once
-  // p.name — from the joined projects table — is selected: Postgres only
-  // waives the "every selected column must be grouped" rule for columns
-  // functionally dependent on a grouped primary key from the *same* table,
-  // not across a join. p.name is single-valued per agent regardless (each
-  // agent has at most one project), so adding it to GROUP BY changes
-  // nothing about the result, only satisfies Postgres's stricter check.
+  // p.name must be in GROUP BY: Postgres only lets you skip columns of the
+  // grouped table itself, not of a joined one. An agent has one project, so
+  // the result doesn't change.
   const { rows } = await getPostgresPool().query(
     `SELECT a.id, a.name, a.status, a.updated_at, a.project_id, p.name AS project_name,
             COUNT(DISTINCT c.id)::int AS conversation_count
@@ -133,9 +123,7 @@ export async function getAgentActivity(userId, limit = 6) {
 // timestamp. entity_name is a snapshot taken at event time, so this reads
 // correctly even for since-deleted projects/agents.
 export async function getRecentActivity(userId, limit = 8) {
-  // Postgres requires a derived table in FROM to be aliased (unlike
-  // SQLite, which allowed the bare subquery) — "combined" added below,
-  // nothing else about the query's shape changed.
+  // Postgres requires a subquery in FROM to have an alias ("combined").
   const { rows } = await getPostgresPool().query(
     `SELECT * FROM (
        SELECT id, type AS action_type, entity_name AS title, created_at AS timestamp

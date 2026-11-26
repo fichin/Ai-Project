@@ -1,8 +1,6 @@
 import { getPostgresPool, NOW_UTC_SQL } from './postgresClient.js'
 
-// COUNT() is a bigint in Postgres, returned as a string by `pg` by
-// default — cast to ::int so message_count stays a real number, same as
-// SQLite.
+// COUNT() is a bigint, which `pg` returns as a string; ::int keeps it a number.
 export async function listConversationsByUser(userId) {
   const { rows } = await getPostgresPool().query(
     `SELECT c.*, COUNT(m.id)::int AS message_count
