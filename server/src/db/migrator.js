@@ -61,8 +61,10 @@ function assertHistoryMatches(applied, migrations) {
 }
 
 // All pending migrations run in one transaction: either all of them land or
-// none do, because Postgres can roll back DDL too.
-export async function migrate(db, migrations) {
+// none do, because Postgres can roll back DDL too. A dry run does the real
+// work, then rolls back, so bad data fails here instead of in the real run.
+// inspect(db) runs inside the transaction, after the migrations.
+export async function migrate(db, migrations, { dryRun = false, inspect } = {}) {
   await db.exec('BEGIN')
   try {
     await db.query('SELECT pg_advisory_xact_lock($1)', [MIGRATION_LOCK_ID])
@@ -77,11 +79,96 @@ export async function migrate(db, migrations) {
         migration.checksum,
       ])
     }
+    const inspected = inspect ? await inspect(db) : undefined
 
-    await db.exec('COMMIT')
-    return { applied: pending.map((m) => m.name) }
+    await db.exec(dryRun ? 'ROLLBACK' : 'COMMIT')
+    return { applied: pending.map((m) => m.name), dryRun, inspected }
   } catch (error) {
     await db.exec('ROLLBACK')
     throw error
+  }
+}
+
+// Read-only: a READ ONLY transaction makes Postgres itself refuse any write.
+export async function status(db, migrations) {
+  await db.exec('BEGIN READ ONLY')
+  try {
+    const { rows } = await db.query(`SELECT to_regclass('public.schema_migrations') IS NOT NULL AS tracked`)
+    const applied = new Map()
+    if (rows[0].tracked) {
+      const result = await db.query('SELECT name, checksum FROM schema_migrations ORDER BY name')
+      for (const row of result.rows) applied.set(row.name, row.checksum)
+    }
+    let problem = null
+    try {
+      assertHistoryMatches(applied, migrations)
+    } catch (error) {
+      problem = error.message
+    }
+    return {
+      applied: [...applied.keys()],
+      pending: migrations.filter((m) => !applied.has(m.name)).map((m) => m.name),
+      problem,
+    }
+  } finally {
+    await db.exec('ROLLBACK')
+  }
+}
+
+// Records 0001 as applied without running it, for a database that was set up
+// by hand before migrations existed. Only allowed on an untracked database
+// whose schema really matches 0001 (checked by the caller, see describeSchema).
+export async function baseline(db, migrations, name = '0001_baseline.sql') {
+  const first = migrations.find((m) => m.name === name)
+  if (!first) throw new Error(`${name} not found`)
+
+  await db.exec('BEGIN')
+  try {
+    await db.query('SELECT pg_advisory_xact_lock($1)', [MIGRATION_LOCK_ID])
+    const { rows } = await db.query(`SELECT to_regclass('public.users') IS NOT NULL AS has_tables`)
+    if (!rows[0].has_tables) {
+      throw new Error('This database is empty: run the migrations instead of baselining')
+    }
+    const applied = await readApplied(db)
+    if (applied.size > 0) {
+      throw new Error('This database already tracks migrations: nothing to baseline')
+    }
+    await db.query('INSERT INTO schema_migrations (name, checksum) VALUES ($1, $2)', [first.name, first.checksum])
+    await db.exec('COMMIT')
+  } catch (error) {
+    await db.exec('ROLLBACK')
+    throw error
+  }
+}
+
+// One line per column, so two databases can be compared line by line.
+export async function describeSchema(db) {
+  const { rows } = await db.query(`
+    SELECT table_name, column_name, data_type, is_nullable
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name <> 'schema_migrations'
+    ORDER BY table_name, column_name`)
+  return rows.map((r) => `${r.table_name}.${r.column_name} ${r.data_type}${r.is_nullable === 'NO' ? ' not null' : ''}`)
+}
+
+export function compareSchemas(expected, actual) {
+  const actualSet = new Set(actual)
+  const expectedSet = new Set(expected)
+  return {
+    missing: expected.filter((line) => !actualSet.has(line)),
+    unexpected: actual.filter((line) => !expectedSet.has(line)),
+  }
+}
+
+// The schema the given migrations produce, built in a throwaway in-memory
+// Postgres. PGlite is a dev dependency, so it is only loaded when needed.
+export async function expectedSchemaFor(migrations) {
+  const { PGlite } = await import('@electric-sql/pglite')
+  const scratch = new PGlite()
+  try {
+    await migrate(scratch, migrations)
+    return await describeSchema(scratch)
+  } finally {
+    await scratch.close()
   }
 }

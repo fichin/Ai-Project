@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { PGlite } from '@electric-sql/pglite'
-import { checksumOf, loadMigrations, migrate } from './migrator.js'
+import { checksumOf, compareSchemas, describeSchema, loadMigrations, migrate, status } from './migrator.js'
 
 let db
 let dir
@@ -129,4 +129,40 @@ test('ignores files that are not migrations', async () => {
   await writeMigration('notes.sql', 'DROP TABLE a;')
 
   assert.deepEqual((await load()).map((m) => m.name), ['0001_create_a.sql'])
+})
+
+test('a dry run does the work, lets inspect see it, then rolls everything back', async () => {
+  await writeMigration('0001_create_a.sql', 'CREATE TABLE a (id INT); INSERT INTO a VALUES (1), (2);')
+
+  const result = await migrate(db, await load(), {
+    dryRun: true,
+    inspect: async (tx) => (await tx.query('SELECT count(*)::int AS n FROM a')).rows[0].n,
+  })
+
+  assert.deepEqual(result.applied, ['0001_create_a.sql'])
+  assert.equal(result.inspected, 2)
+  assert.deepEqual(await tables(), [])
+})
+
+test('status is read-only and reports pending migrations and problems', async () => {
+  await writeMigration('0001_create_a.sql', 'CREATE TABLE a (id INT);')
+
+  const untracked = await status(db, await load())
+  assert.deepEqual(untracked, { applied: [], pending: ['0001_create_a.sql'], problem: null })
+  // It didn't even create the bookkeeping table.
+  assert.deepEqual(await tables(), [])
+
+  await migrate(db, await load())
+  await writeMigration('0001_create_a.sql', 'CREATE TABLE a (id BIGINT);')
+  const edited = await status(db, await load())
+  assert.match(edited.problem, /was edited/)
+})
+
+test('compareSchemas lists missing and unexpected columns', async () => {
+  await db.exec('CREATE TABLE a (id INT NOT NULL, extra TEXT);')
+  const actual = await describeSchema(db)
+
+  const drift = compareSchemas(['a.id integer not null', 'a.name text'], actual)
+
+  assert.deepEqual(drift, { missing: ['a.name text'], unexpected: ['a.extra text'] })
 })

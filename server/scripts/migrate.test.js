@@ -17,3 +17,11 @@ test('without --yes it only prints the target and never connects', async () => {
   assert.match(stdout, /Nothing changed/)
   assert.doesNotMatch(stdout, /secret/)
 })
+
+test('--baseline without --yes refuses before connecting', async () => {
+  const { stdout } = await run(process.execPath, [script, '--baseline'], {
+    env: { ...process.env, DATABASE_URL: 'postgres://user:secret@db.example.invalid:6543/postgres' },
+  })
+
+  assert.match(stdout, /--baseline writes to the database: add --yes/)
+})
