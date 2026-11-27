@@ -55,8 +55,9 @@ Demo login: `demo@example.com` / `Demo1234!` (pre-verified, no signup needed)
   [docs/database-migrations.md](docs/database-migrations.md)). Timestamps
   are `timestamptz`.
 - **Tests + CI**: 215 frontend tests (Vitest + React Testing Library) and
-  80 backend tests (`node:test`), run with lint and a production build on
-  every push and PR via GitHub Actions.
+  140 backend tests (`node:test`), including integration tests of the real
+  API on Postgres 17 in CI, run with lint and a production build on every
+  push and PR via GitHub Actions.
 - Also: email/password auth with verification and password reset, a
   dashboard with an activity chart, project/agent CRUD with debounced
   search, notifications, an activity feed, user preferences (theme, accent,
@@ -88,21 +89,29 @@ Demo login: `demo@example.com` / `Demo1234!` (pre-verified, no signup needed)
 
 ## Run locally
 
-Requires Node.js 22.12+ and a Postgres database (a free Supabase project
-works). No AI key is needed — without one, the chat uses the mock provider.
+Requires Node.js 22.12+. No database server, Docker or AI key is needed:
+the database runs locally on PGlite, and without a key the chat uses the
+mock provider.
 
-**1. Backend** — copy `server/.env.example` to `server/.env`, set at least
-`DATABASE_URL` to an empty database, then:
+**1. Database** — in a first terminal:
 ```bash
 cd server
 npm install
-npm run migrate -- --yes   # creates every table; safe to re-run
-npm run dev                # http://localhost:4000
+npm run db:dev       # local Postgres on 127.0.0.1:5433, migrated on start
 ```
-`npm run migrate` prints the target database first and changes nothing
-without `--yes`, so check it isn't pointing at production.
+Copy `server/.env.example` to `server/.env` and set the two lines it prints
+(`DATABASE_URL` and `DATABASE_POOL_MAX=1`).
 
-**2. Frontend** (in a second terminal, from the repo root):
+**2. Backend** — in a second terminal:
+```bash
+cd server
+npm run dev          # http://localhost:4000
+```
+Outside production the server refuses to start against a database that
+isn't local (or a development Supabase project you name). See
+[docs/local-development.md](docs/local-development.md).
+
+**3. Frontend** (in a third terminal, from the repo root):
 ```bash
 npm install
 npm run dev          # http://localhost:5173
@@ -113,7 +122,9 @@ inline; the essentials:
 
 | Variable | Notes |
 |---|---|
-| `DATABASE_URL` | Postgres/Supabase connection string |
+| `DATABASE_URL` | Postgres connection string; locally the one `npm run db:dev` prints |
+| `DATABASE_POOL_MAX` | Pool size; `1` for the `db:dev` database |
+| `DEV_DATABASE_SUPABASE_REF` | Optional: a development-only Supabase project allowed in development |
 | `CORS_ORIGIN` | Origin allowed to call this API |
 | `FRONTEND_URL` | Where the frontend is deployed — used to build links in verification/reset emails |
 | `ANTHROPIC_API_KEY` / `GROQ_API_KEY` | AI provider key(s); falls back to a mock provider when both are unset |
@@ -136,20 +147,28 @@ Backend tests use Node's built-in test runner:
 cd server && npm test
 ```
 
-80 tests covering the rate limiters (login/email throttling, IP-spoofing
-resistance, the demo-account exemption), the `/health/db` route, the chat
-service (quotas, history budget, transactional save), the AI providers, and
-the database: the migration runner, the TEXT-to-timestamptz conversion,
-rollback files, and every changed repository query. Database tests run on
-[PGlite](https://pglite.dev/) (real Postgres in memory), so they need no
-database server, locally or in CI.
+140 tests. Unit tests cover the rate limiters (login/email throttling,
+IP-spoofing resistance, the demo-account exemption), the chat service, the
+AI providers, the development-database guard, and the database: the
+migration runner, the TEXT-to-timestamptz conversion, rollback files, and
+every changed repository query.
+
+Integration tests (`server/test/`) run the real API over HTTP on a fresh,
+migrated database per file: sign-up, verification, login, logout and
+password reset; that one user can never read or change another user's
+data; the chat cost caps; and that the migrated schema matches the
+migrations exactly. Locally they use [PGlite](https://pglite.dev/) (real
+Postgres in memory, no server needed); in CI, Postgres 17. Details in
+[docs/local-development.md](docs/local-development.md).
 
 ## Continuous integration
 
 Every push and pull request to `main` runs through GitHub Actions
 (`.github/workflows/ci.yml`): install, lint, the full test suite, and a
-production build for the frontend, plus install, the test suite, and a
-syntax check of every source file for the backend. A red ✗ means something
+production build for the frontend. The backend job starts a Postgres 17
+service container (the version Supabase runs), applies every migration with
+the same CLI used for production, fails on schema drift, then runs the unit
+and integration tests and a syntax check of every source file. A red ✗ means something
 is actually broken — lint errors, failing tests, or a build that doesn't
 compile — before it ever reaches `main`, let alone the deployed app. See
 the **Actions** tab on GitHub for run history.

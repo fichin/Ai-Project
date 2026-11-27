@@ -10,6 +10,7 @@ import {
   pgClientAdapter,
   status,
 } from '../src/db/migrator.js'
+import { sslFor } from '../src/db/postgresClient.js'
 
 // npm run migrate                      print the target, change nothing
 // npm run migrate -- --check           read-only: applied, pending, schema drift
@@ -39,12 +40,6 @@ if (wantsBaseline && !args.has('--yes')) {
 if (!wantsCheck && !wantsDryRun && !args.has('--yes')) {
   console.log('Nothing changed. Use --check, --dry-run, or --yes to apply pending migrations.')
   process.exit(0)
-}
-
-function sslFor(url) {
-  const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
-  // Same trade-off as postgresClient.js: encrypted, without Supabase's CA bundle.
-  return isLocal ? false : { rejectUnauthorized: false }
 }
 
 async function rowCounts(db) {
@@ -78,7 +73,7 @@ async function schemaDrift(db, migrations, names) {
   return compareSchemas(expected, await describeSchema(db))
 }
 
-const client = new pg.Client({ connectionString: env.databaseUrl, ssl: sslFor(target) })
+const client = new pg.Client({ connectionString: env.databaseUrl, ssl: sslFor(env.databaseUrl) })
 
 try {
   await client.connect()
@@ -96,6 +91,9 @@ try {
     const clean = !drift.missing.length && !drift.unexpected.length
     console.log(clean ? `Schema matches ${compareTo.at(-1)}.` : `Schema differs from ${compareTo.at(-1)}:`)
     printDrift(drift)
+    // Non-zero so CI fails on drift. Pending alone is fine: that's production
+    // right before you migrate.
+    if (!clean || result.problem) process.exitCode = 1
   } else if (wantsBaseline) {
     const drift = await schemaDrift(db, migrations, ['0001_baseline.sql'])
     if (drift.missing.length || drift.unexpected.length) {

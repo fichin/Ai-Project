@@ -23,13 +23,19 @@ Run from `server/`. Every command first prints the target database.
 | `npm run migrate -- --baseline --yes` | Records 0001 as applied on a database built by hand | One row in `schema_migrations` |
 | `npm run migrate -- --yes` | Applies pending migrations | Yes |
 
-A new local database only needs `npm run migrate -- --yes`.
+The local development database (`npm run db:dev`, see
+[local-development.md](local-development.md)) applies migrations by itself on
+every start.
 
 `--check` compares columns (type, nullability, default), constraints and
-indexes with what the applied migrations should have produced.
+indexes with what the applied migrations should have produced. It exits with
+code 1 on drift or a history problem, so CI fails; pending migrations alone
+exit 0.
 
-Tests run on PGlite, which is a newer Postgres major version than Supabase.
-The dry run on the real database is what proves a migration works there.
+Local tests run on PGlite, a newer Postgres major version than Supabase. CI
+applies every migration to Postgres 17, the version Supabase runs, and runs
+the integration tests there. The dry run on the real database is still what
+proves a migration works on production's data.
 
 ## When `--check` reports drift
 
