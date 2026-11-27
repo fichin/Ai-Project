@@ -48,7 +48,10 @@ export async function startTestApp() {
   // Reads the link the app "sent", the same way a developer would locally.
   async function tokenFromOutbox(email, kind = 'verify-email') {
     const res = await fetch(`${baseUrl}/dev/outbox?to=${encodeURIComponent(email)}`)
-    const messages = await res.json()
+    // Newest first by id: the outbox's created_at has 1-second precision, and
+    // reset() doesn't empty the outbox, so an older email to the same address
+    // from an earlier test can tie with this one.
+    const messages = (await res.json()).sort((a, b) => b.id - a.id)
     const match = messages.map((m) => new RegExp(`/${kind}\\?token=(\\S+)`).exec(m.body)).find(Boolean)
     if (!match) throw new Error(`No ${kind} email for ${email}`)
     return match[1]
