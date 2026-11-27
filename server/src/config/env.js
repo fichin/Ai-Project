@@ -51,6 +51,11 @@ export const env = {
   // pg's own default. The PGlite dev server shares one session across all
   // connections, so it needs 1 or concurrent transactions would mix.
   databasePoolMax: intEnv('DATABASE_POOL_MAX', 10),
+  // Opt-in for developing against a second, non-production Supabase project
+  // (see config/databaseGuard.js). Refs are lowercase in every Supabase URL.
+  devDatabaseSupabaseRef: (process.env.DEV_DATABASE_SUPABASE_REF || '').trim().toLowerCase(),
+  // Render sets RENDER=true on every service; a second sign we're in production.
+  onRender: Boolean(process.env.RENDER),
   // Local SQLite file for the dev-only email outbox ONLY (see
   // db/devOutboxDb.js) — not the app's database, which is Postgres above.
   devOutboxDbPath: process.env.DATABASE_PATH || defaultDevOutboxDbPath,
