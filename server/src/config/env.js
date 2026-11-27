@@ -48,6 +48,9 @@ export const env = {
   // Postgres/Supabase connection string — this is the app's real database
   // (see postgresClient.js and every db/*Repository.js file).
   databaseUrl: process.env.DATABASE_URL || '',
+  // pg's own default. The PGlite dev server shares one session across all
+  // connections, so it needs 1 or concurrent transactions would mix.
+  databasePoolMax: intEnv('DATABASE_POOL_MAX', 10),
   // Local SQLite file for the dev-only email outbox ONLY (see
   // db/devOutboxDb.js) — not the app's database, which is Postgres above.
   devOutboxDbPath: process.env.DATABASE_PATH || defaultDevOutboxDbPath,

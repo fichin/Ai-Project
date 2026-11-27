@@ -10,20 +10,33 @@ export function daysAgo(days) {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 }
 
-// The app's one real database connection — every db/*Repository.js file
-// queries through this pool. The only other SQLite left anywhere in the
-// server is devOutboxDb.js's own tiny standalone connection for the
-// dev-only email outbox, which is deliberately separate from this.
-//
-// `rejectUnauthorized: false` skips CA chain validation (the connection is
-// still encrypted via TLS) since Node doesn't ship Supabase's CA by
-// default — the same setting Supabase's own docs recommend for a plain
-// `pg` client without additionally configuring their CA bundle.
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
+
+export function isLocalHost(hostname) {
+  return LOCAL_HOSTS.has(hostname)
+}
+
+// Local Postgres (CI's container, the PGlite dev server) has no TLS, so asking
+// for it fails the connection. Anything remote keeps TLS; an unparseable URL
+// keeps it too, so a typo can't silently turn encryption off.
+// rejectUnauthorized: false still encrypts; Node just doesn't ship Supabase's CA.
+export function sslFor(connectionString) {
+  try {
+    if (isLocalHost(new URL(connectionString).hostname)) return false
+  } catch {
+    // fall through to TLS
+  }
+  return { rejectUnauthorized: false }
+}
+
+// The app's one real database connection; every db/*Repository.js queries
+// through it. The dev outbox has its own separate SQLite file.
 export function getPostgresPool() {
   if (!pool) {
     pool = new Pool({
       connectionString: env.databaseUrl,
-      ssl: { rejectUnauthorized: false },
+      ssl: sslFor(env.databaseUrl),
+      max: env.databasePoolMax,
     })
   }
   return pool
