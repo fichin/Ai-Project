@@ -91,6 +91,9 @@ try {
     const clean = !drift.missing.length && !drift.unexpected.length
     console.log(clean ? `Schema matches ${compareTo.at(-1)}.` : `Schema differs from ${compareTo.at(-1)}:`)
     printDrift(drift)
+    // Non-zero so CI fails on drift. Pending alone is fine: that's production
+    // right before you migrate.
+    if (!clean || result.problem) process.exitCode = 1
   } else if (wantsBaseline) {
     const drift = await schemaDrift(db, migrations, ['0001_baseline.sql'])
     if (drift.missing.length || drift.unexpected.length) {

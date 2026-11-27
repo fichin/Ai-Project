@@ -76,3 +76,18 @@ test('check, baseline, dry run, migrate, check again', async () => {
 
   assert.match(await cli('--yes'), /Already up to date\./)
 })
+
+test('--check exits non-zero on drift, so CI fails instead of only printing it', async () => {
+  await db.exec('ALTER TABLE users ADD COLUMN added_by_hand TEXT')
+  try {
+    await assert.rejects(cli('--check'), (error) => {
+      assert.equal(error.code, 1)
+      assert.match(error.stdout, /Schema differs from 0003_drop_dev_outbox_emails\.sql/)
+      assert.match(error.stdout, /unexpected: users\.added_by_hand text/)
+      return true
+    })
+  } finally {
+    await db.exec('ALTER TABLE users DROP COLUMN added_by_hand')
+  }
+  assert.match(await cli('--check'), /Schema matches/)
+})
